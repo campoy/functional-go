@@ -39,8 +39,13 @@ func SumR(vs []int) int {
 // that the recursive call is the last thing the function does.
 //
 // A language with tail-call elimination would compile this into a loop. Go
-// does not, so it is no faster than SumR and in practice slightly slower:
-// the extra argument makes each frame bigger.
+// does not: this still emits a recursive CALL and burns a stack frame per
+// element, which is the whole reason SumTRG below exists.
+//
+// The talk measured this as slower than SumR. On a modern toolchain it comes
+// out slightly faster instead, because the addition happens before the call
+// rather than after it, so nothing has to be spilled across the call. That is
+// a calling-convention difference, not tail-call elimination. See NOTES.md.
 //
 // Callers start the recursion with s set to 0.
 //

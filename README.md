@@ -54,10 +54,10 @@ The deck never states the input size. This reconstruction sums 1000 elements, wh
 
 | Benchmark | Talk, 2015 (4 cores) | Measured, Apple M4 Pro, Go 1.26 |
 | --- | ---: | ---: |
-| `BenchmarkSumI` | 462 ns/op | 235 ns/op |
-| `BenchmarkSumR` | 4707 ns/op | 2587 ns/op |
-| `BenchmarkSumTR` | 5056 ns/op | 2108 ns/op |
-| `BenchmarkSumTRG` | 1587 ns/op | 298 ns/op |
+| `BenchmarkSumI` | 462 ns/op | 236 ns/op |
+| `BenchmarkSumR` | 4707 ns/op | 2575 ns/op |
+| `BenchmarkSumTR` | 5056 ns/op | 2098 ns/op |
+| `BenchmarkSumTRG` | 1587 ns/op | 297 ns/op |
 
 Median of five runs, `go test ./sum -bench . -count=5`. All four allocate nothing.
 
@@ -65,8 +65,22 @@ The headline still holds a decade later: **recursion costs about 10× the loop, 
 
 Two things have changed since 2015, though:
 
-- **Tail recursion is no longer the slowest of the four.** The talk measured `SumTR` as *slower* than plain `SumR` (5056 vs 4707 ns/op), presumably because the extra accumulator argument makes each stack frame bigger. Today it comes out faster (2108 vs 2587). The reversal does not affect the argument — both are still an order of magnitude off the loop — but the slide's implicit "and it's even worse" no longer reproduces.
-- **The hand-optimised version has caught up.** In 2015 `SumTRG` was 3.4× the cost of `SumI`; here it is 1.27×. The reslicing that used to dominate is now nearly free.
+- **Tail recursion is no longer the slowest of the four.** The talk measured `SumTR` as *slower* than plain `SumR` (5056 vs 4707 ns/op); today it comes out faster (2098 vs 2575). The slide's implicit "and it's even worse" no longer reproduces — see below for why.
+- **The hand-optimised version has caught up.** In 2015 `SumTRG` was 3.4× the cost of `SumI`; here it is 1.26×. The reslicing that used to dominate is now nearly free.
+
+### No, Go did not add tail-call elimination
+
+The tempting reading of that first row is that the compiler has learned to eliminate tail calls in the decade since. It has not, and the reconstruction checked rather than assumed:
+
+- `go build -gcflags=-S` shows `SumTR` compiling to a real recursive `CALL` followed by `RET`, in a function with a 48-byte frame that calls `runtime.morestack_noctxt`. `SumTRG` — the same algorithm with the tail call written as a `goto` — is `LEAF|NOFRAME` with zero `CALL` instructions. That is what elimination would look like, and only the hand-written version gets it.
+- Summing 1,000,000 elements, `SumR` and `SumTR` each grow the goroutine stack by ~32 MB, one frame per element. `SumTRG` uses 32 KB.
+- At 5,000,000 elements both recursive forms die with `fatal error: stack overflow`. `SumTRG` returns the answer.
+
+What changed is the **calling convention**, not tail calls. `SumR` adds `vs[0]` to the result *after* the recursive call returns, so the slice pointer and index have to survive the call — the compiler spills both to the stack beforehand and reloads them after. `SumTR` does its addition *before* the call, so nothing is live across it: the accumulator stays in a register and the return value passes straight through. Zero spills, and about 0.5 ns per element of difference.
+
+In 2015 that tradeoff ran the other way, because Go 1.5 passed every argument on the stack — `SumTR`'s extra accumulator was a stack write on every call, which is the likeliest reason the talk measured it slowest. The register-based ABI (Go 1.17 on amd64, 1.18 on arm64) made the argument free and left the no-spill property as a net win.
+
+The talk's actual claim is untouched by any of this: Go still does not eliminate tail calls, and `SumTRG` is still 7× faster than `SumTR` for exactly that reason.
 
 Reproduce with:
 
