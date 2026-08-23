@@ -45,7 +45,8 @@ func SumR(vs []int) int {
 // The talk measured this as slower than SumR. On a modern toolchain it comes
 // out slightly faster instead, because the addition happens before the call
 // rather than after it, so nothing has to be spilled across the call. That is
-// a calling-convention difference, not tail-call elimination. See NOTES.md.
+// a calling-convention difference, not tail-call elimination. The evidence is
+// in docs/tail-recursion.md.
 //
 // Callers start the recursion with s set to 0.
 //
