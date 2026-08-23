@@ -27,6 +27,7 @@ What the reconstruction has *learned*. These describe this repository — the ch
 - [`NOTES.md`](NOTES.md) — the deviation log: every departure from the literal slide text, and why
 - [`docs/investigations/`](docs/investigations/) — long-form findings, with the evidence needed to re-derive them:
   - [`tail-recursion.md`](docs/investigations/tail-recursion.md) — does Go eliminate tail calls? (No. Here is how that was established.)
+  - [`benchmark-input-size.md`](docs/investigations/benchmark-input-size.md) — how many elements do the benchmarks sum? (The deck does not say; here is the bracketing argument for 1000.)
 
 ## Planned layout
 
@@ -60,7 +61,7 @@ go run ./examples/library              # not written yet
 
 Four ways to sum a slice of ints: iterative, recursive, tail-recursive, and tail-recursive with the tail call flattened into a `goto` by hand — because Go does not do that for you.
 
-The deck never states the input size. This reconstruction sums 1000 elements, which is consistent with the 462 ns/op reported for `SumI` on 2015 hardware.
+The deck never states the input size — it shows only benchmark output, whose leading column is `b.N` rather than a size. This reconstruction sums 1000 elements, an inference [bracketed here](docs/investigations/benchmark-input-size.md).
 
 | Benchmark | Talk, 2015 (4 cores) | Measured, Apple M4 Pro, Go 1.26 |
 | --- | ---: | ---: |

@@ -104,9 +104,11 @@ func TestSumDoesNotModify(t *testing.T) {
 
 // benchSize is how many elements the benchmarks sum.
 //
-// The slides report the timings but never state the input size. 1000 is the
-// value this reconstruction picked, and is consistent with the 462 ns/op the
-// talk reports for SumI on 2015 hardware. See NOTES.md.
+// The slides report the timings but never state the input size, and never show
+// the benchmark source -- the leading column on those slides is b.N, not the
+// size. 1000 is inference: it is the size at which the reported SumR-SumI gap
+// implies a believable per-call overhead for 2015 hardware. See
+// docs/investigations/benchmark-input-size.md.
 const benchSize = 1000
 
 var benchInput = seq(benchSize)

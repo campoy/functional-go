@@ -44,7 +44,9 @@ To be resolved when the code is written, and recorded here:
 
 ### `sum` (slides 8–15)
 
-**Benchmark input size: 1000 elements.** The deck reports 462/4707/5056/1587 ns/op (slides 11, 13, 15) but never says how many elements are summed. 1000 is inference, not evidence: it is the size at which `SumI` costs about 462 ns on 2015 hardware. Recorded in `sum_test.go` as `benchSize`. If the real figure ever surfaces, this is the one number to change.
+**Benchmark input size: 1000 elements.** The deck reports 462/4707/5056/1587 ns/op (slides 11, 13, 15) but never says how many elements are summed, and never shows the benchmark source at all — only its output. The leading column on those slides (3000000, 300000, 1000000) is `b.N`, the iteration count, not the input size; it is fully determined by `ns/op` and the default one-second `-benchtime`, so it constrains the size not at all.
+
+1000 is inference, not evidence, but it is bracketed: the `SumR`−`SumI` gap implies 4.25 ns per recursive call at that size, against 2.34 ns measured here on current hardware. 500 would require an implausibly slow call and 2000 an implausibly fast one. Recorded in `sum_test.go` as `benchSize`; if the real figure ever surfaces, it is the one number to change. Full working in [`docs/investigations/benchmark-input-size.md`](docs/investigations/benchmark-input-size.md).
 
 **The talk's ordering does not fully reproduce.** On an M4 Pro under Go 1.26, `SumTR` (2098 ns/op) comes out *faster* than `SumR` (2575), where the talk had it slower (5056 vs 4707). The conclusion the slides draw is unaffected, but the specific "tail recursion is the worst of the three" reading of slide 13 is now wrong. `README.md` reports both columns rather than quietly substituting today's numbers.
 
