@@ -4,7 +4,7 @@ Where this repository departs from the literal text of the slides, and why.
 
 The deck (`docs/functional_go.pdf`) was written to be projected, not compiled. Several snippets do not build as printed, and several functions are called but never defined. This file records every such decision so the reconstruction can be audited against the source. `docs/api-from-slides.md` holds the signature-by-signature checklist; this file holds the reasoning.
 
-**Status:** no Go code has been written yet. Everything below was decided by reading the deck. Implementation notes get appended as the packages are built.
+**Status:** `sum/` is implemented; `fp/` and the examples are not. Everything not marked as an implementation note was decided by reading the deck.
 
 ## Deviations from the literal slide text
 
@@ -37,9 +37,28 @@ These are reconstructions. They are the most likely places for this repository t
 
 To be resolved when the code is written, and recorded here:
 
-- **Benchmark input size.** The deck reports 462/4707/5056/1587 ns/op (slides 11, 13, 15) but never states how many elements are summed. A size around 1000 is consistent with 462 ns/op for the iterative version on 2015 hardware, but that is inference, not evidence. Pick a size, state it here, and report measured numbers next to the historical ones in `README.md`.
 - **`Compose` argument order.** Slide 77 checks `g.out != f.in` and returns `f.Call(g.Call(x))`, so `Compose(f, g)` applies `g` first. This is mathematical order, not pipeline order, and it reads backwards to most people. Kept as printed.
 - **Whether `Maybe.Map` uses the slide 52 or slide 78 body.** Slide 78 (the appendix), because the simple nil check on slide 52 cannot handle the typed nil pointers that Go methods return, and the weather example depends on exactly that.
+
+## Implementation notes
+
+### `sum` (slides 8–15)
+
+**Benchmark input size: 1000 elements.** The deck reports 462/4707/5056/1587 ns/op (slides 11, 13, 15) but never says how many elements are summed, and never shows the benchmark source at all — only its output. The leading column on those slides (3000000, 300000, 1000000) is `b.N`, the iteration count, not the input size; it is fully determined by `ns/op` and the default one-second `-benchtime`, so it constrains the size not at all.
+
+1000 is inference, not evidence, but it is bracketed: the `SumR`−`SumI` gap implies 4.25 ns per recursive call at that size, against 2.34 ns measured here on current hardware. 500 would require an implausibly slow call and 2000 an implausibly fast one. Recorded in `sum_test.go` as `benchSize`; if the real figure ever surfaces, it is the one number to change. Full working in [`docs/investigations/benchmark-input-size.md`](docs/investigations/benchmark-input-size.md).
+
+**The talk's ordering does not fully reproduce.** On an M4 Pro under Go 1.26, `SumTR` (2098 ns/op) comes out *faster* than `SumR` (2575), where the talk had it slower (5056 vs 4707). The conclusion the slides draw is unaffected, but the specific "tail recursion is the worst of the three" reading of slide 13 is now wrong. `README.md` reports both columns rather than quietly substituting today's numbers.
+
+**The reversal is not tail-call elimination.** The obvious explanation — that Go has since learned to eliminate tail calls — was checked and is false. `SumTR` still compiles to a real recursive `CALL`, still burns a stack frame per element, and still overflows the stack on input that `SumTRG` handles. What changed is the calling convention: Go 1.5 passed arguments on the stack, making `SumTR`'s extra accumulator cost a write per call, while the register ABI made it free and left `SumTR`'s no-spill-across-the-call property as a net win. Slide 15's premise is untouched.
+
+The full investigation — the three checks, the commands and programs to re-run them, the assembly, and what is measured versus inferred — is in [`docs/investigations/tail-recursion.md`](docs/investigations/tail-recursion.md).
+
+`SumTRG` has also closed most of its gap to `SumI` since 2015: 1.26× rather than 3.4×.
+
+**Callers seed the accumulator with 0.** `SumTR` and `SumTRG` take `(vs []int, s int)` as the slides show, so unlike `SumI` and `SumR` they cannot be called with just a slice. The tests wrap them to compare all four uniformly. Keeping the two-argument form matters — it is what makes the recursive call a tail call, which is the whole subject of slides 12–15.
+
+**Tests cover the three slide typos directly.** `TestSumAgree` compares all four implementations on random input; reintroducing any of the slide's errors makes it fail rather than silently returning a wrong answer.
 
 ## Modernizations deliberately refused
 

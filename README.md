@@ -6,17 +6,28 @@ The talk asks what functional programming looks like in a language with no gener
 
 ## Status
 
-**Reconstruction in progress.** This repository currently contains the source material only; the Go code is not written yet.
+**Reconstruction in progress.** `sum/` is implemented and tested. The `fp/` library and the two examples are not written yet.
 
 The original repo shown in the talk has been lost. What survives is the slide deck, and this repository is an attempt to recover the code from it. That means the code here is a *reconstruction*, not the 2015 original: where the slides are ambiguous or contain typos, choices have been made. Every such choice is recorded in [`NOTES.md`](NOTES.md).
 
 ## Source material
 
-- [`docs/functional_go.pdf`](docs/functional_go.pdf) — the slide deck, 78 slides
+What the reconstruction is built *from*. These describe the 2015 talk, not this repository, and are never edited to match the code:
+
+- [`docs/functional_go.pdf`](docs/functional_go.pdf) — the slide deck, 78 slides. Ground truth.
 - [`docs/api-from-slides.md`](docs/api-from-slides.md) — every type and signature the deck defines, with slide references
 - [`docs/prompt.md`](docs/prompt.md) — the reconstruction spec, transcribed from the deck
 - Slides online: <https://speakerdeck.com/campoy/functional-go>
 - Video: <https://www.youtube.com/watch?v=ouyHp2nJl0I>
+
+## Reconstruction notes
+
+What the reconstruction has *learned*. These describe this repository — the choices made, and the questions that came up along the way:
+
+- [`NOTES.md`](NOTES.md) — the deviation log: every departure from the literal slide text, and why
+- [`docs/investigations/`](docs/investigations/) — long-form findings, with the evidence needed to re-derive them:
+  - [`tail-recursion.md`](docs/investigations/tail-recursion.md) — does Go eliminate tail calls? (No. Here is how that was established.)
+  - [`benchmark-input-size.md`](docs/investigations/benchmark-input-size.md) — how many elements do the benchmarks sum? (The deck does not say; here is the bracketing argument for 1000.)
 
 ## Planned layout
 
@@ -39,31 +50,50 @@ examples/
 
 ## Running it
 
-Once the code exists:
-
 ```sh
-go test ./...
-go run ./examples/weather
-go run ./examples/library
-go test ./sum -bench . -benchmem
+go test ./...                          # works today
+go test ./sum -bench . -benchmem       # works today
+go run ./examples/weather              # not written yet
+go run ./examples/library              # not written yet
 ```
 
 ## Benchmarks
 
 Four ways to sum a slice of ints: iterative, recursive, tail-recursive, and tail-recursive with the tail call flattened into a `goto` by hand — because Go does not do that for you.
 
-The numbers reported in the talk, on a 4-core machine in 2015:
+The deck never states the input size — it shows only benchmark output, whose leading column is `b.N` rather than a size. This reconstruction sums 1000 elements, an inference [bracketed here](docs/investigations/benchmark-input-size.md).
 
-| Benchmark | Historical (ns/op) | Measured here |
-| --- | --- | --- |
-| `BenchmarkSumI` | 462 | _pending_ |
-| `BenchmarkSumR` | 4707 | _pending_ |
-| `BenchmarkSumTR` | 5056 | _pending_ |
-| `BenchmarkSumTRG` | 1587 | _pending_ |
+| Benchmark | Talk, 2015 (4 cores) | Measured, Apple M4 Pro, Go 1.26 |
+| --- | ---: | ---: |
+| `BenchmarkSumI` | 462 ns/op | 236 ns/op |
+| `BenchmarkSumR` | 4707 ns/op | 2575 ns/op |
+| `BenchmarkSumTR` | 5056 ns/op | 2098 ns/op |
+| `BenchmarkSumTRG` | 1587 ns/op | 297 ns/op |
 
-The shape is the interesting part: tail recursion is *slower* than plain recursion in Go, and faking the optimisation by hand recovers most, but not all, of the gap to the loop.
+Median of five runs, `go test ./sum -bench . -count=5`. All four allocate nothing.
 
-The deck does not state the input size, so the reconstruction picks one and records it in [`NOTES.md`](NOTES.md). The measured column will be filled in against the same benchmark shape once `sum/` is written.
+The headline still holds a decade later: **recursion costs about 10× the loop, and writing it in tail form does not help, because Go does not eliminate tail calls.** You have to do the elimination yourself, and `SumTRG` — the same algorithm with the tail call rewritten as a `goto` — gets essentially all of it back.
+
+Two things have changed since 2015, though:
+
+- **Tail recursion is no longer the slowest of the four.** The talk measured `SumTR` as *slower* than plain `SumR` (5056 vs 4707 ns/op); today it comes out faster (2098 vs 2575). The slide's implicit "and it's even worse" no longer reproduces — see below for why.
+- **The hand-optimised version has caught up.** In 2015 `SumTRG` was 3.4× the cost of `SumI`; here it is 1.26×. The reslicing that used to dominate is now nearly free.
+
+### No, Go did not add tail-call elimination
+
+The tempting reading of that first row is that the compiler has learned to eliminate tail calls in the decade since. It has not. `SumTR` still compiles to a real recursive `CALL` in a function with a 48-byte frame; it still grows the goroutine stack by one frame per element; and it still dies with `fatal error: stack overflow` on input that `SumTRG` sums without trouble.
+
+What changed is the **calling convention**. `SumR` adds `vs[0]` *after* the recursive call returns, so the slice pointer and index must survive the call and get spilled to the stack. `SumTR` adds *before* the call, so nothing is live across it — the accumulator stays in a register. In 2015 that tradeoff ran the other way, because Go 1.5 passed every argument on the stack and `SumTR`'s extra accumulator cost a write per call. The register ABI made it free.
+
+The talk's actual claim is untouched: Go still does not eliminate tail calls, and `SumTRG` is still 7× faster than `SumTR` for exactly that reason.
+
+**[`docs/investigations/tail-recursion.md`](docs/investigations/tail-recursion.md)** has the whole investigation — how each check works and why it is conclusive, the assembly, the programs, and which parts are measured rather than inferred.
+
+Reproduce with:
+
+```sh
+go test ./sum -bench . -benchmem -count=5
+```
 
 ## Constraints
 
