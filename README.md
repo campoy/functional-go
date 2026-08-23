@@ -12,11 +12,21 @@ The original repo shown in the talk has been lost. What survives is the slide de
 
 ## Source material
 
-- [`docs/functional_go.pdf`](docs/functional_go.pdf) — the slide deck, 78 slides
+What the reconstruction is built *from*. These describe the 2015 talk, not this repository, and are never edited to match the code:
+
+- [`docs/functional_go.pdf`](docs/functional_go.pdf) — the slide deck, 78 slides. Ground truth.
 - [`docs/api-from-slides.md`](docs/api-from-slides.md) — every type and signature the deck defines, with slide references
 - [`docs/prompt.md`](docs/prompt.md) — the reconstruction spec, transcribed from the deck
 - Slides online: <https://speakerdeck.com/campoy/functional-go>
 - Video: <https://www.youtube.com/watch?v=ouyHp2nJl0I>
+
+## Reconstruction notes
+
+What the reconstruction has *learned*. These describe this repository — the choices made, and the questions that came up along the way:
+
+- [`NOTES.md`](NOTES.md) — the deviation log: every departure from the literal slide text, and why
+- [`docs/investigations/`](docs/investigations/) — long-form findings, with the evidence needed to re-derive them:
+  - [`tail-recursion.md`](docs/investigations/tail-recursion.md) — does Go eliminate tail calls? (No. Here is how that was established.)
 
 ## Planned layout
 
@@ -76,7 +86,7 @@ What changed is the **calling convention**. `SumR` adds `vs[0]` *after* the recu
 
 The talk's actual claim is untouched: Go still does not eliminate tail calls, and `SumTRG` is still 7× faster than `SumTR` for exactly that reason.
 
-**[`docs/tail-recursion.md`](docs/tail-recursion.md)** has the whole investigation — how each check works and why it is conclusive, the assembly, the programs, and which parts are measured rather than inferred.
+**[`docs/investigations/tail-recursion.md`](docs/investigations/tail-recursion.md)** has the whole investigation — how each check works and why it is conclusive, the assembly, the programs, and which parts are measured rather than inferred.
 
 Reproduce with:
 

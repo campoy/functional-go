@@ -50,7 +50,7 @@ To be resolved when the code is written, and recorded here:
 
 **The reversal is not tail-call elimination.** The obvious explanation — that Go has since learned to eliminate tail calls — was checked and is false. `SumTR` still compiles to a real recursive `CALL`, still burns a stack frame per element, and still overflows the stack on input that `SumTRG` handles. What changed is the calling convention: Go 1.5 passed arguments on the stack, making `SumTR`'s extra accumulator cost a write per call, while the register ABI made it free and left `SumTR`'s no-spill-across-the-call property as a net win. Slide 15's premise is untouched.
 
-The full investigation — the three checks, the commands and programs to re-run them, the assembly, and what is measured versus inferred — is in [`docs/tail-recursion.md`](docs/tail-recursion.md).
+The full investigation — the three checks, the commands and programs to re-run them, the assembly, and what is measured versus inferred — is in [`docs/investigations/tail-recursion.md`](docs/investigations/tail-recursion.md).
 
 `SumTRG` has also closed most of its gap to `SumI` since 2015: 1.26× rather than 3.4×.
 

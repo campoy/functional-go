@@ -6,15 +6,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A reconstruction of the source repo for Francesc Campoy's talk **"Functional Go?"** (dotGo 2015, Paris). The code in the talk came from a repo the author has since lost; this repository recovers it from the slides.
 
-Two source documents, in priority order:
+### The documents, and which kind each one is
 
-1. **`docs/functional_go.pdf`** — the actual 78-slide deck. This is the ground truth.
-2. **`docs/api-from-slides.md`** — every type and signature the deck defines, with slide numbers, provenance marks, and the full list of slide errors. Use it as the conformance checklist when writing or reviewing code.
+The docs fall into two kinds, and the difference matters when they disagree with each other or with the code. **Inputs** are what the reconstruction is built *from*; they describe the 2015 talk. **Outputs** are what the reconstruction has *learned*; they describe this repository. Never edit an input to match the code — that erases the evidence the project exists to preserve. Record the discrepancy in an output instead.
+
+**Inputs**, in priority order:
+
+1. **`docs/functional_go.pdf`** — the actual 78-slide deck. This is the ground truth, and it is immutable: do not regenerate, annotate, or "fix" it.
+2. **`docs/api-from-slides.md`** — every type and signature the deck defines, with slide numbers, provenance marks, and the full list of slide errors. Derived mechanically from the deck. Use it as the conformance checklist when writing or reviewing code.
 3. **`docs/prompt.md`** — a spec derived from transcribing the deck, with the intended repo layout and working method.
 
-Where the two disagree, the deck wins, but read `docs/prompt.md` too: it resolves ambiguities the deck leaves open (`NewMany`/`Each` signatures, benchmark shape) and specifies the layout.
+Where the deck and the derived documents disagree, the deck wins, but read `docs/prompt.md` too: it resolves ambiguities the deck leaves open (`NewMany`/`Each` signatures, benchmark shape) and specifies the layout.
 
-As of now the repo contains only these documents and this file. There is no Go code, no `go.mod`, no tests yet.
+**Outputs**, written as the work proceeds:
+
+- **`NOTES.md`** — the deviation log. Every departure from the literal slide text, and why. One entry per decision.
+- **`docs/investigations/`** — long-form findings that are too big for a `NOTES.md` bullet: a question that came up, how it was checked, and what the answer turned out to be. `tail-recursion.md` is the first (does Go eliminate tail calls? — no, and here is the proof).
+
+The rule of thumb: if a `NOTES.md` entry needs more than a paragraph, or if someone would reasonably want to re-run your evidence, it belongs in `docs/investigations/` with a one-line summary and a link left behind in `NOTES.md`.
+
+**Status:** `sum/` is implemented and tested, with `go.mod` in place. `fp/` and both examples are not written yet.
 
 ### Reading the deck
 
@@ -65,7 +76,7 @@ Fix each silently in code and append it to `NOTES.md`, the deviation log. It is 
 
 ## Commands
 
-None of these work yet — there is no code. They are the target.
+The `sum` ones work today; the `fp` and `examples` ones are the target.
 
 ```sh
 go build ./...
