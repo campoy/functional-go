@@ -118,7 +118,7 @@ go test ./sum -bench . -benchmem -count=5
 The reconstruction deliberately keeps the code as it would have been written in 2015:
 
 - no generics — `reflect` and `interface{}` throughout
-- no third-party dependencies
+- no third-party dependencies in the library or examples themselves — `testify` is used in the tests, and nowhere else
 - the API surface stays exactly as the slides show it
 
 Modern Go would write most of this with type parameters in a fraction of the space. That is rather the point of the talk, and improving the code would erase it.

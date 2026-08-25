@@ -122,11 +122,21 @@ They are plain functions taking a `Person` rather than methods with invented nam
 
 **Slide 73's extra step is dropped.** Slide 73 ends the chain with `func(s string) bool { count[s]++; return true }` — a counting step disguised as a mapped function, returning a `bool` nobody reads, purely because `Map` requires exactly one result. Slide 74 then introduces `Each` to do the same thing honestly. The example implements slide 74's version; slide 73 reads as the intermediate step that motivates it.
 
+## Testing
+
+**`testify` is a test-only dependency.** The tests for `fp/` and the two examples use `github.com/stretchr/testify` — `require` for preconditions that make the rest of the test meaningless if they fail, `assert` for independent checks that should each report on their own. It is the only third-party module in `go.mod`, and the library and examples themselves stay standard-library-only; the no-dependencies constraint applies to the code the talk is about, not to its test scaffolding.
+
+`sum/` is deliberately left on hand-rolled `if got != want { t.Errorf(...) }`. Its tests predate this change and converting them would have widened an unrelated diff.
+
+**The chain type errors are pinned exactly.** `TestChainTypeError` in `examples/library`, and the `Do` mismatch tests in `fp/`, assert the full error string rather than merely that some error came back. A test that accepts any error passes just as happily when the chain breaks for an entirely unrelated reason, which makes it evidence of nothing.
+
+**Method expressions are checked at compile time, not run time.** The shapes slides 60, 70 and 72 depend on — `Library.Books` having type `func(Library) []Book`, and so on — are pinned by package-level `var _ func(Library) []Book = Library.Books` declarations in each example's test file. They were `TestMethodExpressions` functions with the assignments inside, but there was nothing to run: the compiler is the whole assertion, and a test body implies a run-time check that does not exist.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on pull requests targeting `main` and on pushes to `main`: `go build`, `go test`, `go test -race`, `gofmt -l`, `go vet`, and `staticcheck`. Build and test run on both Go 1.21 — the module's own `go` directive, kept as the floor — and current stable, so the reconstruction is known to build on the oldest toolchain it claims and the newest one available.
 
-**Linter: `staticcheck`, pinned, with no suppressions.** Chosen over `golangci-lint` because it is a single tool with a single pinned version and needs no configuration file, which suits a repository whose defining constraint is that it has no third-party dependencies. It is installed as a CI tool only; it never enters `go.mod`.
+**Linter: `staticcheck`, pinned, with no suppressions.** Chosen over `golangci-lint` because it is a single tool with a single pinned version and needs no configuration file, which suits a repository that keeps its non-test code free of third-party dependencies. It is installed as a CI tool only; it never enters `go.mod`.
 
 The expectation was that a modern linter would object to the deliberate 2015-era style — `reflect` and `interface{}` throughout, no generics, slide-faithful names. It does not. staticcheck's default check set reports nothing, on `sum/` and on the reflection-heavy `fp/` code alike, so nothing is disabled and no `staticcheck.conf` exists. If a future check does fire on deliberate style, the exclusion belongs in a `staticcheck.conf` scoped as narrowly as the tool allows, with a comment naming the constraint it serves — not a blanket `//lint:ignore`.
 
@@ -138,7 +148,7 @@ The talk exists because Go 1.5 had no generics. Rewriting any of this with type 
 
 - no type parameters anywhere, however much `Map` is asking for them
 - `interface{}` is never spelled `any` — the 2015 spelling is part of the artifact
-- no third-party dependencies
+- no third-party dependencies in non-test code; `testify` is allowed in tests, and is the only entry in `go.mod`
 - no renaming for taste, even where the slide names are awkward (`Func`, `Many`, `Do`)
 
 A generic version of this library would be perhaps a fifth of the size and fully type-safe at compile time. That comparison is the point of preserving this one, not a reason to change it.

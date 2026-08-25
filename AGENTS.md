@@ -63,7 +63,7 @@ Slides 77–78 are appendix material but hold the **real** implementations — u
 ## Hard constraints (these are the point of the project, not preferences)
 
 - **No generics, ever.** The talk exists because Go 1.5 had none. Use `reflect` and `interface{}`. Do not write type parameters. Do not spell `interface{}` as `any` — the 2015 spelling is deliberate.
-- **Standard library only.** No third-party dependencies.
+- **Standard library only in non-test code.** `fp/`, `sum/` and the examples' non-test code must not import anything outside the standard library. Tests may use `github.com/stretchr/testify` (`require` for preconditions that must abort, `assert` for independent checks); it is the only third-party dependency in `go.mod`, and it is test-only.
 - Module path is `github.com/campoy/functional-go`. Target Go 1.5 *semantics*, but declare a modern `go` directive so it builds on current toolchains.
 - **Do not rename anything.** The API surface (`Func`, `NewFunc`, `Must`, `Compose`, `List`, `Maybe`, `Many`, and the `Map`/`Do`/`Each` methods) must match the slides exactly, even where a modern name would read better.
 - Improvements you're tempted to make belong in `NOTES.md`, not in the code.
