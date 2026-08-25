@@ -1,11 +1,24 @@
 package main
 
 import (
-	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/campoy/functional-go/fp"
+)
+
+// The shapes slides 70 and 72 depend on. Value receivers returning slices are
+// what make these usable as method expressions, and the slices are what
+// Many.Map flattens. These are declarations rather than a test because there
+// is nothing to run: the compiler is the whole assertion.
+var (
+	_ func(Library) []Book = Library.Books
+	_ func(Book) []Page    = Book.Pages
+	_ func(Page) []Line    = Page.Lines
+	_ func(Line) string    = Line.Text
 )
 
 var libraries = []struct {
@@ -34,13 +47,10 @@ func TestWordCountAgree(t *testing.T) {
 	for _, lib := range libraries {
 		want := WordCountImperative(lib.l)
 		got, err := WordCountFunctional(lib.l)
-		if err != nil {
-			t.Errorf("%s: WordCountFunctional failed: %v", lib.name, err)
+		if !assert.NoErrorf(t, err, "%s: WordCountFunctional failed", lib.name) {
 			continue
 		}
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("%s: functional = %v, imperative = %v", lib.name, got, want)
-		}
+		assert.Equalf(t, want, got, "%s: functional and imperative disagree", lib.name)
 	}
 }
 
@@ -52,44 +62,33 @@ func TestShelfWordCount(t *testing.T) {
 	for word, want := range map[string]int{
 		"the": 5, "fox": 2, "dog": 2, "be": 2, "to": 2, "quick": 1, "amused": 1,
 	} {
-		if got := words[word]; got != want {
-			t.Errorf("count[%q] = %d, want %d", word, got, want)
-		}
+		assert.Equalf(t, want, words[word], "count[%q]", word)
 	}
-	if got, ok := words[""]; ok {
-		t.Errorf(`count[""] = %d, want no entry: an empty line contributes no words`, got)
-	}
-}
-
-// TestMethodExpressions pins the shapes slides 70 and 72 depend on. Value
-// receivers returning slices are what make these usable as method
-// expressions, and the slices are what Many.Map flattens.
-func TestMethodExpressions(t *testing.T) {
-	var (
-		_ func(Library) []Book = Library.Books
-		_ func(Book) []Page    = Book.Pages
-		_ func(Page) []Line    = Page.Lines
-		_ func(Line) string    = Line.Text
-	)
+	assert.NotContains(t, words, "", "an empty line contributes no words")
 }
 
 // TestChainTypeError is slide 74's "// type error" branch. Do checks every
 // joint before applying anything, so a step that does not fit comes back as an
 // error rather than a panic inside reflect.Value.Call. See NOTES.md.
+//
+// The error is pinned exactly: the test is worth nothing if it passes on any
+// error at all, since then a chain broken somewhere else entirely still looks
+// like a success.
 func TestChainTypeError(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("Do panicked with %v, want an error", r)
-		}
-	}()
+	var (
+		w   *fp.Many
+		err error
+	)
+	require.NotPanics(t, func() {
+		// Page.Lines is left out, so Book.Pages feeds a Page to Line.Text.
+		w, err = fp.NewMany(shelf).Do(
+			Library.Books,
+			Book.Pages,
+			Line.Text,
+			strings.Fields)
+	}, "Do must report a type error rather than panicking")
 
-	// Page.Lines is left out, so Book.Pages feeds a Page to Line.Text.
-	w, err := fp.NewMany(shelf).Do(
-		Library.Books,
-		Book.Pages,
-		Line.Text,
-		strings.Fields)
-	if err == nil {
-		t.Fatalf("Do(...) = %v, want an error: a Page is not a Line", w)
-	}
+	require.Errorf(t, err, "Do(...) = %v, want an error: a Page is not a Line", w)
+	require.EqualError(t, err,
+		"can't chain: step 1 returns []main.Page, but step 2 takes main.Line")
 }
