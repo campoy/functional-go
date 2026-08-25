@@ -60,6 +60,16 @@ The full investigation — the three checks, the commands and programs to re-run
 
 **Tests cover the three slide typos directly.** `TestSumAgree` compares all four implementations on random input; reintroducing any of the slide's errors makes it fail rather than silently returning a wrong answer.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on pull requests targeting `main` and on pushes to `main`: `go build`, `go test`, `go test -race`, `gofmt -l`, `go vet`, and `staticcheck`. Build and test run on both Go 1.21 — the module's own `go` directive, kept as the floor — and current stable, so the reconstruction is known to build on the oldest toolchain it claims and the newest one available.
+
+**Linter: `staticcheck`, pinned, with no suppressions.** Chosen over `golangci-lint` because it is a single tool with a single pinned version and needs no configuration file, which suits a repository whose defining constraint is that it has no third-party dependencies. It is installed as a CI tool only; it never enters `go.mod`.
+
+The expectation was that a modern linter would object to the deliberate 2015-era style — `reflect` and `interface{}` throughout, no generics, slide-faithful names. It does not. staticcheck's default check set reports nothing, on `sum/` and on the reflection-heavy `fp/` code alike, so nothing is disabled and no `staticcheck.conf` exists. If a future check does fire on deliberate style, the exclusion belongs in a `staticcheck.conf` scoped as narrowly as the tool allows, with a comment naming the constraint it serves — not a blanket `//lint:ignore`.
+
+Enabling the non-default `ST*` checks was tried and rejected: the only thing it surfaced was a doc-comment phrasing nit, which is not worth the maintenance.
+
 ## Modernizations deliberately refused
 
 The talk exists because Go 1.5 had no generics. Rewriting any of this with type parameters would erase the subject matter, so:
