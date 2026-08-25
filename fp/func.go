@@ -172,6 +172,20 @@ func canCall(t, in reflect.Type) bool {
 	return t.Kind() == reflect.Ptr && t.Elem().AssignableTo(in)
 }
 
+// checkStart reports whether v, a value already sitting in a container when Do
+// is called, can be handed to the first step of the chain.
+//
+// A nil value is not an error: Maybe short-circuits on it and argValue turns an
+// invalid value into the zero value, so neither container ever passes it to
+// reflect.Value.Call unchanged.
+func checkStart(v interface{}, in reflect.Type) error {
+	t := reflect.TypeOf(v)
+	if t == nil || canCall(t, in) {
+		return nil
+	}
+	return fmt.Errorf("can't chain: the starting value is a %v, but step 0 takes %v", t, in)
+}
+
 // newChain turns fs into Funcs and checks that each step's result can be fed
 // to the next one, so that Maybe.Do and Many.Do report a type error rather
 // than panicking inside reflect.Value.Call.

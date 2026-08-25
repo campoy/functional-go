@@ -98,6 +98,41 @@ func TestMaybeDoTypeMismatch(t *testing.T) {
 	}
 }
 
+// TestMaybeDoStartMismatch guards the other end of the chain: the value the
+// Maybe already holds has to fit step 0, or Map hands it straight to
+// reflect.Value.Call and panics there.
+func TestMaybeDoStartMismatch(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Do panicked with %v, want an error", r)
+		}
+	}()
+
+	m, err := (Maybe{42}).Do(strings.ToUpper)
+	if err == nil {
+		t.Fatalf("Do(toUpper) on a Maybe{42} = %v, want an error: an int is not a string", m)
+	}
+	if !strings.Contains(err.Error(), "int") || !strings.Contains(err.Error(), "string") {
+		t.Errorf("error = %q, want it to name both types", err)
+	}
+}
+
+// TestMaybeDoStartAllowed covers what must NOT be rejected by that check: a nil
+// value short-circuits legitimately, and an empty chain is a no-op.
+func TestMaybeDoStartAllowed(t *testing.T) {
+	if m, err := (Maybe{}).Do(strings.ToUpper); err != nil {
+		t.Errorf("Do on an empty Maybe failed: %v", err)
+	} else if m.Value != nil {
+		t.Errorf("Do on an empty Maybe = %v, want an empty Maybe", m.Value)
+	}
+
+	if m, err := (Maybe{42}).Do(); err != nil {
+		t.Errorf("Do() failed: %v", err)
+	} else if m.Value != 42 {
+		t.Errorf("Do() = %v, want 42", m.Value)
+	}
+}
+
 // TestMaybeDoStopsEarly checks that Do short-circuits like Map: once the chain
 // is empty, no later step is applied.
 func TestMaybeDoStopsEarly(t *testing.T) {

@@ -79,6 +79,13 @@ func (m *Many) Do(fs ...interface{}) (*Many, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(chain) > 0 {
+		for c := m; c != nil; c = c.Tail {
+			if err := checkStart(c.Head, chain[0].in); err != nil {
+				return nil, err
+			}
+		}
+	}
 	for _, f := range chain {
 		m = m.Map(f)
 	}

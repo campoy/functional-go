@@ -50,6 +50,11 @@ func (m Maybe) Do(fs ...interface{}) (Maybe, error) {
 	if err != nil {
 		return Maybe{}, err
 	}
+	if len(chain) > 0 {
+		if err := checkStart(m.Value, chain[0].in); err != nil {
+			return Maybe{}, err
+		}
+	}
 	for _, f := range chain {
 		m = m.Map(f)
 	}

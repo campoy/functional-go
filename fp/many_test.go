@@ -161,6 +161,48 @@ func TestManyDoRejectsUnflattenedSlice(t *testing.T) {
 	}
 }
 
+// TestManyDoStartMismatch is the Many half of the starting-value check: every
+// cell already in the container is passed straight to step 0, so a cell that
+// does not fit it panics inside reflect.Value.Call.
+func TestManyDoStartMismatch(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Do panicked with %v, want an error", r)
+		}
+	}()
+
+	m, err := NewMany([]int{1}).Do(strings.ToUpper)
+	if err == nil {
+		t.Fatalf("Do(toUpper) over ints = %v, want an error: an int is not a string", m)
+	}
+	if !strings.Contains(err.Error(), "int") || !strings.Contains(err.Error(), "string") {
+		t.Errorf("error = %q, want it to name both types", err)
+	}
+}
+
+// TestManyDoStartAllowed covers what that check must NOT reject: a nil
+// receiver, an empty chain, and a nil cell head, which reflect.TypeOf reports
+// as a nil Type.
+func TestManyDoStartAllowed(t *testing.T) {
+	if m, err := (*Many)(nil).Do(strings.ToUpper); err != nil {
+		t.Errorf("Do on a nil Many failed: %v", err)
+	} else if m != nil {
+		t.Errorf("Do on a nil Many = %v, want nil", m)
+	}
+
+	if m, err := NewMany([]int{1}).Do(); err != nil {
+		t.Errorf("Do() failed: %v", err)
+	} else if m.String() != "1" {
+		t.Errorf("Do() = %s, want 1", m)
+	}
+
+	if m, err := (&Many{nil, nil}).Do(strings.ToUpper); err != nil {
+		t.Errorf("Do over a nil head failed: %v", err)
+	} else if m.String() != `""` {
+		t.Errorf("Do over a nil head = %s, want an empty string", m)
+	}
+}
+
 // TestManyEach is slide 74's final step.
 func TestManyEach(t *testing.T) {
 	count := make(map[string]int)
