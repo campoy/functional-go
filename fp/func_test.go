@@ -4,22 +4,18 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewFunc(t *testing.T) {
 	f, err := NewFunc(strings.ToUpper)
-	if err != nil {
-		t.Fatalf("NewFunc(strings.ToUpper) failed: %v", err)
-	}
-	if want := reflect.TypeOf(""); f.in != want {
-		t.Errorf("in = %v, want %v", f.in, want)
-	}
-	if want := reflect.TypeOf(""); f.out != want {
-		t.Errorf("out = %v, want %v", f.out, want)
-	}
-	if got := f.Call("hello"); got != "HELLO" {
-		t.Errorf(`Call("hello") = %v, want "HELLO"`, got)
-	}
+	require.NoError(t, err, "NewFunc(strings.ToUpper)")
+
+	assert.Equal(t, reflect.TypeOf(""), f.in, "in")
+	assert.Equal(t, reflect.TypeOf(""), f.out, "out")
+	assert.Equal(t, "HELLO", f.Call("hello"), `Call("hello")`)
 }
 
 // TestNewFuncErrors covers the validation slide 31 elides behind the comment
@@ -47,9 +43,7 @@ func TestNewFuncErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		f, err := NewFunc(tt.f)
-		if err == nil {
-			t.Errorf("NewFunc(%s) = %v, want an error", tt.name, f)
-		}
+		assert.Errorf(t, err, "NewFunc(%s) = %v, want an error", tt.name, f)
 	}
 }
 
@@ -60,28 +54,17 @@ func TestNewFuncDereferences(t *testing.T) {
 	type point struct{ x int }
 
 	f := Must(NewFunc(func(p point) int { return p.x }))
-	if got := f.Call(&point{7}); got != 7 {
-		t.Errorf("Call(&point{7}) = %v, want 7", got)
-	}
-	if got := f.Call(point{7}); got != 7 {
-		t.Errorf("Call(point{7}) = %v, want 7", got)
-	}
+	assert.Equal(t, 7, f.Call(&point{7}), "Call(&point{7})")
+	assert.Equal(t, 7, f.Call(point{7}), "Call(point{7})")
 }
 
 func TestMust(t *testing.T) {
 	f := Must(NewFunc(strings.ToUpper))
-	if got := f.Call("bye"); got != "BYE" {
-		t.Errorf(`Call("bye") = %v, want "BYE"`, got)
-	}
+	assert.Equal(t, "BYE", f.Call("bye"), `Call("bye")`)
 }
 
 func TestMustPanics(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Error("Must(NewFunc(42)) returned, want a panic")
-		}
-	}()
-	Must(NewFunc(42))
+	assert.Panics(t, func() { Must(NewFunc(42)) }, "Must(NewFunc(42))")
 }
 
 // TestCompose checks the argument order, which is mathematical rather than
@@ -91,15 +74,11 @@ func TestCompose(t *testing.T) {
 	twice := Must(NewFunc(func(s string) string { return s + s }))
 
 	h, err := Compose(twice, toUpper)
-	if err != nil {
-		t.Fatalf("Compose failed: %v", err)
-	}
-	if got := h.Call("ab"); got != "ABAB" {
-		t.Errorf(`Call("ab") = %v, want "ABAB"`, got)
-	}
-	if want := reflect.TypeOf(""); h.in != want || h.out != want {
-		t.Errorf("in, out = %v, %v, want %v, %v", h.in, h.out, want, want)
-	}
+	require.NoError(t, err, "Compose(twice, toUpper)")
+
+	assert.Equal(t, "ABAB", h.Call("ab"), `Call("ab")`)
+	assert.Equal(t, reflect.TypeOf(""), h.in, "in")
+	assert.Equal(t, reflect.TypeOf(""), h.out, "out")
 }
 
 // TestComposeMismatch is the talk's punchline: the check g.out != f.in is the
@@ -108,7 +87,7 @@ func TestComposeMismatch(t *testing.T) {
 	length := Must(NewFunc(func(s string) int { return len(s) }))
 	toUpper := Must(NewFunc(strings.ToUpper))
 
-	if h, err := Compose(toUpper, length); err == nil {
-		t.Errorf("Compose(toUpper, length) = %v, want an error: int is not a string", h)
-	}
+	h, err := Compose(toUpper, length)
+	require.Errorf(t, err, "Compose(toUpper, length) = %v, want an error", h)
+	assert.EqualError(t, err, "can't compose: int != string")
 }

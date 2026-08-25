@@ -3,6 +3,9 @@ package fp
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewMany(t *testing.T) {
@@ -21,9 +24,7 @@ func TestNewMany(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := NewMany(tt.v).String(); got != tt.want {
-			t.Errorf("%s: NewMany(%v) = %s, want %s", tt.name, tt.v, got, tt.want)
-		}
+		assert.Equalf(t, tt.want, NewMany(tt.v).String(), "%s: NewMany(%v)", tt.name, tt.v)
 	}
 }
 
@@ -33,9 +34,7 @@ func TestManyMap(t *testing.T) {
 	toUpper := Must(NewFunc(strings.ToUpper))
 	m := NewMany([]string{"hello there", "good bye"})
 
-	if got, want := m.Map(toUpper).String(), `"HELLO THERE", "GOOD BYE"`; got != want {
-		t.Errorf("Map(toUpper) = %s, want %s", got, want)
-	}
+	assert.Equal(t, `"HELLO THERE", "GOOD BYE"`, m.Map(toUpper).String(), "Map(toUpper)")
 }
 
 // TestManyMapChained is slide 68, and the regression test for the loop
@@ -51,10 +50,7 @@ func TestManyMapChained(t *testing.T) {
 	m := NewMany([]string{"hello there", "good bye"})
 
 	got := m.Map(toUpper).Map(fields).String()
-	want := `"HELLO", "THERE", "GOOD", "BYE"`
-	if got != want {
-		t.Errorf("Map(toUpper).Map(fields) = %s, want %s", got, want)
-	}
+	assert.Equal(t, `"HELLO", "THERE", "GOOD", "BYE"`, got, "Map(toUpper).Map(fields)")
 }
 
 // TestManyMapFlattens exercises toSlice with expansions of every size,
@@ -63,60 +59,44 @@ func TestManyMapFlattens(t *testing.T) {
 	fields := Must(NewFunc(strings.Fields))
 	m := NewMany([]string{"a b c", "", "d"})
 
-	if got, want := m.Map(fields).String(), `"a", "b", "c", "d"`; got != want {
-		t.Errorf("Map(fields) = %s, want %s", got, want)
-	}
+	assert.Equal(t, `"a", "b", "c", "d"`, m.Map(fields).String(), "Map(fields)")
 }
 
 func TestManyMapNil(t *testing.T) {
 	toUpper := Must(NewFunc(strings.ToUpper))
-	if got := (*Many)(nil).Map(toUpper); got != nil {
-		t.Errorf("(*Many)(nil).Map(toUpper) = %v, want nil", got)
-	}
+	assert.Nil(t, (*Many)(nil).Map(toUpper), "(*Many)(nil).Map(toUpper)")
 }
 
 func TestManyDo(t *testing.T) {
 	m, err := NewMany([]string{"hello there", "good bye"}).Do(strings.ToUpper, strings.Fields)
-	if err != nil {
-		t.Fatalf("Do failed: %v", err)
-	}
-	if got, want := m.String(), `"HELLO", "THERE", "GOOD", "BYE"`; got != want {
-		t.Errorf("Do(toUpper, fields) = %s, want %s", got, want)
-	}
+	require.NoError(t, err, "Do")
+	assert.Equal(t, `"HELLO", "THERE", "GOOD", "BYE"`, m.String(), "Do(toUpper, fields)")
 }
 
 func TestManyDoEmpty(t *testing.T) {
 	m, err := NewMany([]string{"hello"}).Do()
-	if err != nil {
-		t.Fatalf("Do() failed: %v", err)
-	}
-	if got, want := m.String(), `"hello"`; got != want {
-		t.Errorf("Do() = %s, want %s", got, want)
-	}
+	require.NoError(t, err, "Do()")
+	assert.Equal(t, `"hello"`, m.String(), "Do()")
 }
 
 func TestManyDoBadFunc(t *testing.T) {
-	if m, err := NewMany([]string{"hello"}).Do(strings.ToUpper, 42); err == nil {
-		t.Errorf("Do(toUpper, 42) = %v, want an error", m)
-	}
+	m, err := NewMany([]string{"hello"}).Do(strings.ToUpper, 42)
+	assert.Errorf(t, err, "Do(toUpper, 42) = %v, want an error", m)
 }
 
 // TestManyDoTypeMismatch is the Many half of the addition described in
 // NOTES.md: without it, a mismatched joint panics inside reflect.Value.Call.
 func TestManyDoTypeMismatch(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("Do panicked with %v, want an error", r)
-		}
-	}()
+	var (
+		m   *Many
+		err error
+	)
+	require.NotPanics(t, func() {
+		m, err = NewMany([]string{"hello"}).Do(strings.ToUpper, func(n int) int { return n + 1 })
+	}, "Do must report a type error rather than panicking")
 
-	m, err := NewMany([]string{"hello"}).Do(strings.ToUpper, func(n int) int { return n + 1 })
-	if err == nil {
-		t.Fatalf("Do(toUpper, incr) = %v, want an error: string is not an int", m)
-	}
-	if !strings.Contains(err.Error(), "string") || !strings.Contains(err.Error(), "int") {
-		t.Errorf("error = %q, want it to name both types", err)
-	}
+	require.Errorf(t, err, "Do(toUpper, incr) = %v, want an error", m)
+	assert.EqualError(t, err, "can't chain: step 0 returns string, but step 1 takes int")
 }
 
 // TestManyDoAcceptsFlattening checks that the type check allows for what Map
@@ -131,12 +111,8 @@ func TestManyDoAcceptsFlattening(t *testing.T) {
 		func(p page) string { return p.text },
 		strings.Fields,
 	)
-	if err != nil {
-		t.Fatalf("Do failed: %v", err)
-	}
-	if got, want := m.String(), `"a", "b", "c"`; got != want {
-		t.Errorf("Do(...) = %s, want %s", got, want)
-	}
+	require.NoError(t, err, "Do")
+	assert.Equal(t, `"a", "b", "c"`, m.String(), "Do(...)")
 }
 
 // TestManyDoRejectsUnflattenedSlice guards the flattening contract in canMap:
@@ -144,62 +120,53 @@ func TestManyDoAcceptsFlattening(t *testing.T) {
 // []string feeds strings to the next step, never a []string. That joint is a
 // type error, and Do must report it rather than panic inside reflect.Call.
 func TestManyDoRejectsUnflattenedSlice(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("Do panicked with %v, want an error", r)
-		}
-	}()
+	var (
+		m   *Many
+		err error
+	)
+	require.NotPanics(t, func() {
+		m, err = NewMany([]string{"a b"}).Do(
+			strings.Fields,
+			func(ss []string) int { return len(ss) })
+	}, "Do must report a type error rather than panicking")
 
-	m, err := NewMany([]string{"a b"}).Do(
-		strings.Fields,
-		func(ss []string) int { return len(ss) })
-	if err == nil {
-		t.Fatalf("Do(Fields, len) = %v, want an error: Map flattens []string into strings", m)
-	}
-	if !strings.Contains(err.Error(), "[]string") {
-		t.Errorf("error = %q, want it to name []string", err)
-	}
+	require.Errorf(t, err, "Do(Fields, len) = %v, want an error", m)
+	assert.EqualError(t, err, "can't chain: step 0 returns []string, but step 1 takes []string")
 }
 
 // TestManyDoStartMismatch is the Many half of the starting-value check: every
 // cell already in the container is passed straight to step 0, so a cell that
 // does not fit it panics inside reflect.Value.Call.
 func TestManyDoStartMismatch(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("Do panicked with %v, want an error", r)
-		}
-	}()
+	var (
+		m   *Many
+		err error
+	)
+	require.NotPanics(t, func() {
+		m, err = NewMany([]int{1}).Do(strings.ToUpper)
+	}, "Do must report a type error rather than panicking")
 
-	m, err := NewMany([]int{1}).Do(strings.ToUpper)
-	if err == nil {
-		t.Fatalf("Do(toUpper) over ints = %v, want an error: an int is not a string", m)
-	}
-	if !strings.Contains(err.Error(), "int") || !strings.Contains(err.Error(), "string") {
-		t.Errorf("error = %q, want it to name both types", err)
-	}
+	require.Errorf(t, err, "Do(toUpper) over ints = %v, want an error", m)
+	assert.EqualError(t, err, "can't chain: the starting value is a int, but step 0 takes string")
 }
 
 // TestManyDoStartAllowed covers what that check must NOT reject: a nil
 // receiver, an empty chain, and a nil cell head, which reflect.TypeOf reports
 // as a nil Type.
 func TestManyDoStartAllowed(t *testing.T) {
-	if m, err := (*Many)(nil).Do(strings.ToUpper); err != nil {
-		t.Errorf("Do on a nil Many failed: %v", err)
-	} else if m != nil {
-		t.Errorf("Do on a nil Many = %v, want nil", m)
+	m, err := (*Many)(nil).Do(strings.ToUpper)
+	if assert.NoError(t, err, "Do on a nil Many") {
+		assert.Nil(t, m, "Do on a nil Many")
 	}
 
-	if m, err := NewMany([]int{1}).Do(); err != nil {
-		t.Errorf("Do() failed: %v", err)
-	} else if m.String() != "1" {
-		t.Errorf("Do() = %s, want 1", m)
+	m, err = NewMany([]int{1}).Do()
+	if assert.NoError(t, err, "Do()") {
+		assert.Equal(t, "1", m.String(), "Do()")
 	}
 
-	if m, err := (&Many{nil, nil}).Do(strings.ToUpper); err != nil {
-		t.Errorf("Do over a nil head failed: %v", err)
-	} else if m.String() != `""` {
-		t.Errorf("Do over a nil head = %s, want an empty string", m)
+	m, err = (&Many{nil, nil}).Do(strings.ToUpper)
+	if assert.NoError(t, err, "Do over a nil head") {
+		assert.Equal(t, `""`, m.String(), "Do over a nil head")
 	}
 }
 
@@ -208,17 +175,13 @@ func TestManyEach(t *testing.T) {
 	count := make(map[string]int)
 	NewMany([]string{"a", "b", "a"}).Each(func(s string) { count[s]++ })
 
-	if count["a"] != 2 || count["b"] != 1 {
-		t.Errorf("count = %v, want map[a:2 b:1]", count)
-	}
+	assert.Equal(t, map[string]int{"a": 2, "b": 1}, count, "count")
 }
 
 func TestManyEachNil(t *testing.T) {
 	calls := 0
 	(*Many)(nil).Each(func(s string) { calls++ })
-	if calls != 0 {
-		t.Errorf("Each on a nil Many made %d calls, want 0", calls)
-	}
+	assert.Zero(t, calls, "Each on a nil Many made calls")
 }
 
 // TestManyEachPanics covers the validation Each does for itself. It cannot
@@ -236,14 +199,7 @@ func TestManyEachPanics(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		func() {
-			defer func() {
-				if recover() == nil {
-					t.Errorf("Each(%s) returned, want a panic", tt.name)
-				}
-			}()
-			NewMany([]string{"a"}).Each(tt.f)
-		}()
+		assert.Panicsf(t, func() { NewMany([]string{"a"}).Each(tt.f) }, "Each(%s)", tt.name)
 	}
 }
 
@@ -262,16 +218,7 @@ func TestToSlice(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := toSlice(tt.v)
-		if len(got) != len(tt.want) {
-			t.Errorf("%s: toSlice(%v) = %v, want %v", tt.name, tt.v, got, tt.want)
-			continue
-		}
-		for i := range tt.want {
-			if got[i] != tt.want[i] {
-				t.Errorf("%s: element %d = %v, want %v", tt.name, i, got[i], tt.want[i])
-			}
-		}
+		assert.Equalf(t, tt.want, toSlice(tt.v), "%s: toSlice(%v)", tt.name, tt.v)
 	}
 }
 
@@ -287,8 +234,6 @@ func TestManyString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := tt.m.String(); got != tt.want {
-			t.Errorf("%s: String() = %q, want %q", tt.name, got, tt.want)
-		}
+		assert.Equalf(t, tt.want, tt.m.String(), "%s: String()", tt.name)
 	}
 }

@@ -3,6 +3,8 @@ package fp
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // elems flattens a List so tests can compare against a plain slice.
@@ -18,16 +20,8 @@ func TestListMap(t *testing.T) {
 	toUpper := Must(NewFunc(strings.ToUpper))
 	l := &List{"hello", &List{"bye", nil}}
 
-	got := elems(l.Map(toUpper))
 	want := []interface{}{"HELLO", "BYE"}
-	if len(got) != len(want) {
-		t.Fatalf("Map(toUpper) = %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("element %d = %v, want %v", i, got[i], want[i])
-		}
-	}
+	assert.Equal(t, want, elems(l.Map(toUpper)), "Map(toUpper)")
 }
 
 // TestListMapDoesNotModify guards the structural recursion: Map builds a new
@@ -37,16 +31,12 @@ func TestListMapDoesNotModify(t *testing.T) {
 	l := &List{"hello", &List{"bye", nil}}
 
 	l.Map(toUpper)
-	if got, want := l.String(), `"hello", "bye"`; got != want {
-		t.Errorf("original list = %s, want %s", got, want)
-	}
+	assert.Equal(t, `"hello", "bye"`, l.String(), "original list")
 }
 
 func TestListMapNil(t *testing.T) {
 	toUpper := Must(NewFunc(strings.ToUpper))
-	if got := (*List)(nil).Map(toUpper); got != nil {
-		t.Errorf("(*List)(nil).Map(toUpper) = %v, want nil", got)
-	}
+	assert.Nil(t, (*List)(nil).Map(toUpper), "(*List)(nil).Map(toUpper)")
 }
 
 // TestListMapChangesType checks that Map is not restricted to endofunctions:
@@ -55,9 +45,7 @@ func TestListMapChangesType(t *testing.T) {
 	length := Must(NewFunc(func(s string) int { return len(s) }))
 	l := &List{"hello", &List{"bye", nil}}
 
-	if got, want := l.Map(length).String(), "5, 3"; got != want {
-		t.Errorf("Map(length) = %s, want %s", got, want)
-	}
+	assert.Equal(t, "5, 3", l.Map(length).String(), "Map(length)")
 }
 
 func TestListString(t *testing.T) {
@@ -74,8 +62,6 @@ func TestListString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := tt.l.String(); got != tt.want {
-			t.Errorf("%s: String() = %q, want %q", tt.name, got, tt.want)
-		}
+		assert.Equalf(t, tt.want, tt.l.String(), "%s: String()", tt.name)
 	}
 }

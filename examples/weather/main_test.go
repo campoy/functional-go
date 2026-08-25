@@ -1,6 +1,21 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// The shapes slide 60 depends on. Value receivers returning pointers are what
+// make these usable as method expressions, and changing either half breaks
+// WeatherMap and WeatherDo. These are declarations rather than a test because
+// there is nothing to run: the compiler is the whole assertion.
+var (
+	_ func(Person) *Address = Person.Address
+	_ func(Address) *City   = Address.City
+	_ func(City) *Weather   = City.Weather
+	_ func(Weather) string  = Weather.Description
+)
 
 // impls lists the three implementations of slides 58, 61 and 63, so every test
 // runs against all of them.
@@ -34,9 +49,7 @@ var people = []struct {
 func TestWeatherAgree(t *testing.T) {
 	for _, who := range people {
 		for _, impl := range impls {
-			if got := impl.f(who.p); got != who.want {
-				t.Errorf("%s(%s) = %q, want %q", impl.name, who.name, got, who.want)
-			}
+			assert.Equalf(t, who.want, impl.f(who.p), "%s(%s)", impl.name, who.name)
 		}
 	}
 }
@@ -45,20 +58,6 @@ func TestWeatherAgree(t *testing.T) {
 // survives as a wrapper around WeatherDo.
 func TestPersonWeather(t *testing.T) {
 	for _, who := range people {
-		if got := who.p.Weather(); got != who.want {
-			t.Errorf("Person.Weather(%s) = %q, want %q", who.name, got, who.want)
-		}
+		assert.Equalf(t, who.want, who.p.Weather(), "Person.Weather(%s)", who.name)
 	}
-}
-
-// TestMethodExpressions pins the shapes slide 60 depends on. Value receivers
-// returning pointers are what make these usable as method expressions, and
-// changing either half breaks WeatherMap and WeatherDo.
-func TestMethodExpressions(t *testing.T) {
-	var (
-		_ func(Person) *Address = Person.Address
-		_ func(Address) *City   = Address.City
-		_ func(City) *Weather   = City.Weather
-		_ func(Weather) string  = Weather.Description
-	)
 }

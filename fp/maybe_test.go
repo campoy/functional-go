@@ -3,19 +3,18 @@ package fp
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMaybeMap(t *testing.T) {
 	toUpper := Must(NewFunc(strings.ToUpper))
 
 	// Slide 53: with a value.
-	if got := (Maybe{"hello"}).Map(toUpper).Value; got != "HELLO" {
-		t.Errorf(`Maybe{"hello"}.Map(toUpper).Value = %v, want "HELLO"`, got)
-	}
+	assert.Equal(t, "HELLO", (Maybe{"hello"}).Map(toUpper).Value, `Maybe{"hello"}.Map(toUpper)`)
 	// Slide 54: without one.
-	if got := (Maybe{}).Map(toUpper).Value; got != nil {
-		t.Errorf("Maybe{}.Map(toUpper).Value = %v, want nil", got)
-	}
+	assert.Nil(t, (Maybe{}).Map(toUpper).Value, "Maybe{}.Map(toUpper)")
 }
 
 // TestMaybeMapChained is slide 55.
@@ -23,9 +22,8 @@ func TestMaybeMapChained(t *testing.T) {
 	toUpper := Must(NewFunc(strings.ToUpper))
 	twice := Must(NewFunc(func(s string) string { return s + s }))
 
-	if got := (Maybe{"hello"}).Map(toUpper).Map(twice).Value; got != "HELLOHELLO" {
-		t.Errorf("chained = %v, want HELLOHELLO", got)
-	}
+	got := (Maybe{"hello"}).Map(toUpper).Map(twice).Value
+	assert.Equal(t, "HELLOHELLO", got, "chained")
 }
 
 // TestMaybeMapTypedNil is the reason slide 78 exists rather than slide 52. A
@@ -38,43 +36,31 @@ func TestMaybeMapTypedNil(t *testing.T) {
 	// The step that breaks the chain: it returns (*box)(nil), which is not a
 	// nil interface value.
 	broken := Must(NewFunc(func(s string) *box { return nil }))
-	if got := (Maybe{"hello"}).Map(broken).Value; got != nil {
-		t.Fatalf("Map(broken).Value = %v, want nil: a typed nil must short-circuit", got)
-	}
+	require.Nil(t, (Maybe{"hello"}).Map(broken).Value,
+		"Map(broken).Value: a typed nil must short-circuit")
 
 	// And the chain must stay broken rather than panicking on the next step.
 	next := Must(NewFunc(func(b box) int { return b.n }))
-	if got := (Maybe{"hello"}).Map(broken).Map(next).Value; got != nil {
-		t.Errorf("Map(broken).Map(next).Value = %v, want nil", got)
-	}
+	assert.Nil(t, (Maybe{"hello"}).Map(broken).Map(next).Value, "Map(broken).Map(next)")
 }
 
 func TestMaybeDo(t *testing.T) {
 	m, err := (Maybe{"hello"}).Do(strings.ToUpper, func(s string) string { return s + s })
-	if err != nil {
-		t.Fatalf("Do failed: %v", err)
-	}
-	if m.Value != "HELLOHELLO" {
-		t.Errorf("Do(...).Value = %v, want HELLOHELLO", m.Value)
-	}
+	require.NoError(t, err, "Do")
+	assert.Equal(t, "HELLOHELLO", m.Value, "Do(...).Value")
 }
 
 func TestMaybeDoEmpty(t *testing.T) {
 	m, err := (Maybe{"hello"}).Do()
-	if err != nil {
-		t.Fatalf("Do() failed: %v", err)
-	}
-	if m.Value != "hello" {
-		t.Errorf("Do().Value = %v, want hello", m.Value)
-	}
+	require.NoError(t, err, "Do()")
+	assert.Equal(t, "hello", m.Value, "Do().Value")
 }
 
 // TestMaybeDoBadFunc covers the errors slide 62 does report, the ones coming
 // out of NewFunc.
 func TestMaybeDoBadFunc(t *testing.T) {
-	if m, err := (Maybe{"hello"}).Do(strings.ToUpper, 42); err == nil {
-		t.Errorf("Do(toUpper, 42) = %v, want an error", m)
-	}
+	m, err := (Maybe{"hello"}).Do(strings.ToUpper, 42)
+	assert.Errorf(t, err, "Do(toUpper, 42) = %v, want an error", m)
 }
 
 // TestMaybeDoTypeMismatch covers the errors slide 62 does not report. Its Do
@@ -82,54 +68,46 @@ func TestMaybeDoBadFunc(t *testing.T) {
 // next step's argument panics inside reflect.Value.Call. Checking the joints
 // up front turns that into an error; see NOTES.md.
 func TestMaybeDoTypeMismatch(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("Do panicked with %v, want an error", r)
-		}
-	}()
+	var (
+		m   Maybe
+		err error
+	)
+	require.NotPanics(t, func() {
+		// strings.ToUpper returns a string; the next step wants an int.
+		m, err = (Maybe{"hello"}).Do(strings.ToUpper, func(n int) int { return n + 1 })
+	}, "Do must report a type error rather than panicking")
 
-	// strings.ToUpper returns a string; the next step wants an int.
-	m, err := (Maybe{"hello"}).Do(strings.ToUpper, func(n int) int { return n + 1 })
-	if err == nil {
-		t.Fatalf("Do(toUpper, incr) = %v, want an error: string is not an int", m)
-	}
-	if !strings.Contains(err.Error(), "string") || !strings.Contains(err.Error(), "int") {
-		t.Errorf("error = %q, want it to name both types", err)
-	}
+	require.Errorf(t, err, "Do(toUpper, incr) = %v, want an error", m)
+	assert.EqualError(t, err, "can't chain: step 0 returns string, but step 1 takes int")
 }
 
 // TestMaybeDoStartMismatch guards the other end of the chain: the value the
 // Maybe already holds has to fit step 0, or Map hands it straight to
 // reflect.Value.Call and panics there.
 func TestMaybeDoStartMismatch(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("Do panicked with %v, want an error", r)
-		}
-	}()
+	var (
+		m   Maybe
+		err error
+	)
+	require.NotPanics(t, func() {
+		m, err = (Maybe{42}).Do(strings.ToUpper)
+	}, "Do must report a type error rather than panicking")
 
-	m, err := (Maybe{42}).Do(strings.ToUpper)
-	if err == nil {
-		t.Fatalf("Do(toUpper) on a Maybe{42} = %v, want an error: an int is not a string", m)
-	}
-	if !strings.Contains(err.Error(), "int") || !strings.Contains(err.Error(), "string") {
-		t.Errorf("error = %q, want it to name both types", err)
-	}
+	require.Errorf(t, err, "Do(toUpper) on a Maybe{42} = %v, want an error", m)
+	assert.EqualError(t, err, "can't chain: the starting value is a int, but step 0 takes string")
 }
 
 // TestMaybeDoStartAllowed covers what must NOT be rejected by that check: a nil
 // value short-circuits legitimately, and an empty chain is a no-op.
 func TestMaybeDoStartAllowed(t *testing.T) {
-	if m, err := (Maybe{}).Do(strings.ToUpper); err != nil {
-		t.Errorf("Do on an empty Maybe failed: %v", err)
-	} else if m.Value != nil {
-		t.Errorf("Do on an empty Maybe = %v, want an empty Maybe", m.Value)
+	m, err := (Maybe{}).Do(strings.ToUpper)
+	if assert.NoError(t, err, "Do on an empty Maybe") {
+		assert.Nil(t, m.Value, "Do on an empty Maybe")
 	}
 
-	if m, err := (Maybe{42}).Do(); err != nil {
-		t.Errorf("Do() failed: %v", err)
-	} else if m.Value != 42 {
-		t.Errorf("Do() = %v, want 42", m.Value)
+	m, err = (Maybe{42}).Do()
+	if assert.NoError(t, err, "Do()") {
+		assert.Equal(t, 42, m.Value, "Do()")
 	}
 }
 
@@ -143,13 +121,7 @@ func TestMaybeDoStopsEarly(t *testing.T) {
 		func(s string) *box { return nil },
 		func(b box) int { called = true; return b.n },
 	)
-	if err != nil {
-		t.Fatalf("Do failed: %v", err)
-	}
-	if m.Value != nil {
-		t.Errorf("Do(...).Value = %v, want nil", m.Value)
-	}
-	if called {
-		t.Error("the step after the broken one was applied, want it skipped")
-	}
+	require.NoError(t, err, "Do")
+	assert.Nil(t, m.Value, "Do(...).Value")
+	assert.False(t, called, "the step after the broken one was applied, want it skipped")
 }
