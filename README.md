@@ -6,7 +6,7 @@ The talk asks what functional programming looks like in a language with no gener
 
 ## Status
 
-**Reconstruction in progress.** `sum/` is implemented and tested. The `fp/` library and the two examples are not written yet.
+**Complete.** `sum/`, the `fp/` library and both examples are implemented and tested.
 
 The original repo shown in the talk has been lost. What survives is the slide deck, and this repository is an attempt to recover the code from it. That means the code here is a *reconstruction*, not the 2015 original: where the slides are ambiguous or contain typos, choices have been made. Every such choice is recorded in [`NOTES.md`](NOTES.md).
 
@@ -29,7 +29,7 @@ What the reconstruction has *learned*. These describe this repository — the ch
   - [`tail-recursion.md`](docs/investigations/tail-recursion.md) — does Go eliminate tail calls? (No. Here is how that was established.)
   - [`benchmark-input-size.md`](docs/investigations/benchmark-input-size.md) — how many elements do the benchmarks sum? (The deck does not say; here is the bracketing argument for 1000.)
 
-## Planned layout
+## Layout
 
 ```
 fp/       Func, NewFunc, Must, Compose, List, Maybe, Many
@@ -51,11 +51,29 @@ examples/
 ## Running it
 
 ```sh
-go test ./...                          # works today
-go test ./sum -bench . -benchmem       # works today
-go run ./examples/weather              # not written yet
-go run ./examples/library              # not written yet
+go build ./...
+go test ./...
+go test ./fp -run Example              # the slide outputs, as runnable examples
+go test ./sum -bench . -benchmem       # the four benchmarks from the deck
+go run ./examples/weather
+go run ./examples/library
 ```
+
+`go run ./examples/weather` walks a chain of pointers three ways — by hand, through `Maybe.Map`, and through `Maybe.Do` — for a person who has weather and two who do not:
+
+```
+a person in a sunny city:
+	imperative (slide 58): sunny
+	Map chain  (slide 61): sunny
+	Do         (slide 63): sunny
+a person with no address:
+	imperative (slide 58): no weather
+	...
+```
+
+`go run ./examples/library` counts the words in a small hardcoded library twice — with slide 71's four nested loops, and with the flat `Many` chain of slides 73 and 74 — and prints the two counts side by side. They agree, which is the point.
+
+Every slide that shows output has a matching runnable example in [`fp/example_test.go`](fp/example_test.go), so the deck's printed results are checked by `go test` rather than taken on trust.
 
 ## Benchmarks
 

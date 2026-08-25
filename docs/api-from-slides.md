@@ -73,15 +73,17 @@ Two bodies for `Map` exist: the simple nil check on slide 52, and the nil-pointe
 | `func NewMany(v interface{}) *Many` | 72, 73, 74 | inferred |
 | `func (m *Many) Do(fs ...interface{}) (*Many, error)` | 73, 74 | inferred |
 | `func (m *Many) Each(f interface{})` | 74 | inferred |
+| `func (m *Many) String() string` | 67, 68 | inferred |
 | `func toSlice(v interface{}) []interface{}` | 66 | inferred |
 
 Pointer receivers throughout, unlike `Maybe`. `Map` must tolerate a nil receiver — it recurses into `m.Tail.Map(f)` and returns `nil` when `m == nil`.
 
-The four inferred entries are the weakest part of the reconstruction:
+The five inferred entries are the weakest part of the reconstruction:
 
 - `NewMany` is called as `NewMany(l)` on a `Library` value (slide 72) and `NewMany(m)` (slides 73–74). It must accept both a plain value and a slice.
 - `Do` is assigned two ways: `_, err :=` (slide 73) and `w, err :=` followed by `w.Each(...)` (slide 74), which fixes the first result as `*Many`.
 - `Each` takes `func(s string)` — a function with no return — so it cannot reuse `NewFunc`, which requires exactly one result.
+- `String` is never declared, but slides 67 and 68 do `fmt.Println` on the result of `Map` and show `"HELLO", "THERE", "GOOD", "BYE"` — which requires a `Stringer`, exactly as `List.String` does for slide 38.
 - `toSlice` is called but never shown. Its contract: slice or array in, elements out; anything else in, a one-element slice out. This is what lets `strings.Fields` (`[]string`) follow `strings.ToUpper` (`string`).
 
 ## `examples/weather`
