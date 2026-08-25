@@ -76,6 +76,9 @@ func NewFunc(f interface{}) (*Func, error) {
 	if tf.Kind() != reflect.Func {
 		return nil, fmt.Errorf("%v is not a function", tf)
 	}
+	if vf.IsNil() {
+		return nil, fmt.Errorf("%v is a nil function", tf)
+	}
 	if tf.IsVariadic() {
 		return nil, fmt.Errorf("%v is variadic, want exactly one argument", tf)
 	}

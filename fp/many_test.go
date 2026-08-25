@@ -139,6 +139,28 @@ func TestManyDoAcceptsFlattening(t *testing.T) {
 	}
 }
 
+// TestManyDoRejectsUnflattenedSlice guards the flattening contract in canMap:
+// Map always passes a step's result through toSlice, so a step returning
+// []string feeds strings to the next step, never a []string. That joint is a
+// type error, and Do must report it rather than panic inside reflect.Call.
+func TestManyDoRejectsUnflattenedSlice(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("Do panicked with %v, want an error", r)
+		}
+	}()
+
+	m, err := NewMany([]string{"a b"}).Do(
+		strings.Fields,
+		func(ss []string) int { return len(ss) })
+	if err == nil {
+		t.Fatalf("Do(Fields, len) = %v, want an error: Map flattens []string into strings", m)
+	}
+	if !strings.Contains(err.Error(), "[]string") {
+		t.Errorf("error = %q, want it to name []string", err)
+	}
+}
+
 // TestManyEach is slide 74's final step.
 func TestManyEach(t *testing.T) {
 	count := make(map[string]int)

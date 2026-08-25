@@ -30,6 +30,9 @@ func TestNewFuncErrors(t *testing.T) {
 		f    interface{}
 	}{
 		{"nil", nil},
+		// A typed nil function has a non-nil type word, so it passes every
+		// other check and only panics later, inside Call.
+		{"typed nil function", (func(string) string)(nil)},
 		{"not a function", 42},
 		{"string", "hello"},
 		{"no arguments", func() int { return 0 }},

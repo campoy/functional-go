@@ -155,12 +155,9 @@ func toSlice(v interface{}) []interface{} {
 // canMap reports whether a value of type out can be fed to a Func whose input
 // type is in, once Many.Map has flattened it with toSlice.
 func canMap(out, in reflect.Type) bool {
-	if canCall(out, in) {
-		return true
-	}
 	switch out.Kind() {
 	case reflect.Slice, reflect.Array:
 		return canCall(out.Elem(), in)
 	}
-	return false
+	return canCall(out, in)
 }
