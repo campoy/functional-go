@@ -29,9 +29,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-          # This module has no third-party dependencies, so there is no go.sum
-          # for setup-go to key its cache on. go.mod is the supported fallback.
-          cache-dependency-path: go.mod
+          cache-dependency-path: go.sum
 
       - name: go build
         run: go build ./...
@@ -51,7 +49,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
-          cache-dependency-path: go.mod
+          cache-dependency-path: go.sum
 
       - name: gofmt
         run: |
@@ -82,7 +80,7 @@ jobs:
           # staticcheck itself needs a recent toolchain to build; it analyses
           # the module against its own `go` directive regardless.
           go-version: stable
-          cache-dependency-path: go.mod
+          cache-dependency-path: go.sum
 
       - name: install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@${{ env.STATICCHECK_VERSION }}
