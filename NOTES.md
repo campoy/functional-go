@@ -87,6 +87,8 @@ The full investigation — the three checks, the commands and programs to re-run
 
 **`NewFunc` rejects variadic functions.** Slide 31 elides the validation entirely, so this is a free choice. `reflect` reports the input type of `func(vs ...string) string` as `[]string`, while `reflect.Value.Call` will happily accept a single `string` — so admitting variadics would leave `Compose` and `Do` type-checking against a type the function never actually sees, and `Func.in` would be a small lie. Rejecting them costs nothing: no function in the deck is variadic. The alternative, treating the variadic parameter as the single argument and setting `in` to its element type, was considered and dropped as more machinery than the talk's material justifies.
 
+The same paragraph of validation also rejects a nil `interface{}` and a typed nil function value (`var f func(string) string`), both of which pass the kind and arity checks and then panic inside `reflect.Value.Call`. Slide 31 says nothing about either; returning the error the signature already promises is cheaper than the panic.
+
 **`Func.Call` dereferences a pointer argument when the function wants a value.** This is a deviation the deck needs but never mentions. Slide 61 chains
 
 ```go

@@ -3,8 +3,8 @@
 //
 // It prints all three implementations of the walk side by side -- the
 // imperative one from slide 58, the Map chain from slide 61, and the Do
-// version from slide 63 -- against a person who has weather and one who does
-// not, so the three can be compared.
+// version from slide 63 -- against a person who has weather and two whose
+// chains break at different depths, so the three can be compared.
 //
 // The Maybe use case is the reason Maybe.Map has to check for a typed nil
 // pointer (slide 78). Every method here has a value receiver and returns a
