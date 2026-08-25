@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Pinned so a linter release never turns a green PR red on its own.
+  STATICCHECK_VERSION: "2026.2.1"
+
+jobs:
+  build-test:
+    name: build & test (Go ${{ matrix.go }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor is the module's own `go` directive; `stable` proves the
+        # 2015-era reconstruction still builds on the current toolchain.
+        go: ["1.21", "stable"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          # This module has no third-party dependencies, so there is no go.sum
+          # for setup-go to key its cache on. go.mod is the supported fallback.
+          cache-dependency-path: go.mod
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        run: go test ./...
+
+      - name: go test -race
+        run: go test -race ./...
+
+  vet:
+    name: gofmt & go vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: go.mod
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-clean:"
+            echo "$unformatted" | sed 's/^/  /'
+            echo
+            echo "Run: gofmt -w $(echo "$unformatted" | tr '\n' ' ')"
+            while IFS= read -r file; do
+              echo "::error file=$file::$file is not gofmt-formatted"
+            done <<< "$unformatted"
+            exit 1
+          fi
+          echo "All files are gofmt-clean."
+
+      - name: go vet
+        run: go vet ./...
+
+  staticcheck:
+    name: staticcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # staticcheck itself needs a recent toolchain to build; it analyses
+          # the module against its own `go` directive regardless.
+          go-version: stable
+          cache-dependency-path: go.mod
+
+      - name: install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@${{ env.STATICCHECK_VERSION }}
+
+      # Default check set, no suppressions: this repository's deliberate
+      # 2015-era style (reflect, interface{}, no generics, slide-faithful
+      # names) does not trip any of them. See NOTES.md.
+      - name: staticcheck
+        run: staticcheck ./...
