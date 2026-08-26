@@ -15,21 +15,31 @@ type Maybe struct {
 // apply f to (slide 78).
 //
 // The deck gives two bodies. Slide 52 checks only m.Value == nil. Slide 78, in
-// the appendix, adds the check below for a nil pointer, and that is the one
-// implemented here: a Go method returns a typed nil pointer, not a nil
-// interface, so slide 52's version sees a non-nil m.Value and keeps calling
-// down a chain that has already broken. The weather example does not work
-// without this. See NOTES.md.
+// the appendix, adds a check for a nil pointer, and that is the one implemented
+// here: a Go method returns a typed nil pointer, not a nil interface, so slide
+// 52's version sees a non-nil m.Value and keeps calling down a chain that has
+// already broken. The weather example does not work without this.
+//
+// Slide 78 applies that check to the value coming out of f. It is applied to
+// the value going in as well, since a Maybe can be handed a typed nil to begin
+// with -- Maybe{p.Address()} starts one link down slide 61's chain -- and
+// nothing about that nil is different from one a step produced. See NOTES.md.
 func (m Maybe) Map(f *Func) Maybe {
-	if m.Value == nil {
+	if m.Value == nil || isNilPtr(m.Value) {
 		return Maybe{}
 	}
 	r := f.Call(m.Value)
-	vr := reflect.ValueOf(r)
-	if vr.Kind() == reflect.Ptr && vr.IsNil() {
+	if isNilPtr(r) {
 		return Maybe{}
 	}
 	return Maybe{r}
+}
+
+// isNilPtr reports whether x is a nil pointer wrapped in a non-nil interface,
+// which is what a Go method returns when it has nothing to give back.
+func isNilPtr(x interface{}) bool {
+	v := reflect.ValueOf(x)
+	return v.Kind() == reflect.Ptr && v.IsNil()
 }
 
 // Do maps each of fs over m in turn, short-circuiting as Map does, and returns

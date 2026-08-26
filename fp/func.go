@@ -147,8 +147,10 @@ func Compose(f, g *Func) (*Func, error) {
 // panic. Dereferencing here is what makes slides 61 and 63 work as printed.
 // See NOTES.md.
 //
-// A nil pointer becomes the zero value rather than a panic. Maybe.Map
-// short-circuits before that can happen, so it only matters as a backstop.
+// A nil pointer has nothing to dereference, and there is no honest value to
+// substitute: Call has no error result, so it panics rather than invent one.
+// Maybe.Map short-circuits on a nil pointer at both ends, so a Maybe chain
+// never reaches this; a Many chain holding one does. See NOTES.md.
 func argValue(in reflect.Type, x interface{}) reflect.Value {
 	v := reflect.ValueOf(x)
 	if !v.IsValid() {
@@ -156,7 +158,7 @@ func argValue(in reflect.Type, x interface{}) reflect.Value {
 	}
 	if !v.Type().AssignableTo(in) && v.Kind() == reflect.Ptr && v.Type().Elem().AssignableTo(in) {
 		if v.IsNil() {
-			return reflect.Zero(in)
+			panic(fmt.Sprintf("can't dereference a nil %v to call a function taking %v", v.Type(), in))
 		}
 		return v.Elem()
 	}

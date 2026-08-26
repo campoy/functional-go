@@ -44,6 +44,23 @@ func TestMaybeMapTypedNil(t *testing.T) {
 	assert.Nil(t, (Maybe{"hello"}).Map(broken).Map(next).Value, "Map(broken).Map(next)")
 }
 
+// TestMaybeMapTypedNilHead is the other end of slide 78's check: the typed nil
+// is the value the Maybe was built around rather than one a step returned.
+// Maybe{p.Address()} starts one link down slide 61's chain, and before this
+// check the step ran against the zero Address and its answer came back as a
+// success.
+func TestMaybeMapTypedNilHead(t *testing.T) {
+	type box struct{ n int }
+
+	get := Must(NewFunc(func(b box) int { return b.n }))
+	require.Nil(t, (Maybe{(*box)(nil)}).Map(get).Value,
+		"Maybe{(*box)(nil)}.Map(get).Value: a typed nil head must short-circuit")
+
+	res, err := (Maybe{(*box)(nil)}).Do(func(b box) int { return b.n })
+	assert.NoError(t, err, "Do on a typed nil head is not an error, it is nothing to do")
+	assert.Nil(t, res.Value, "Do on a typed nil head")
+}
+
 func TestMaybeDo(t *testing.T) {
 	m, err := (Maybe{"hello"}).Do(strings.ToUpper, func(s string) string { return s + s })
 	require.NoError(t, err, "Do")
