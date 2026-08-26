@@ -4,9 +4,11 @@ A reconstruction of the code from **"Functional Go?"**, a talk by [Francesc Camp
 
 The talk asks what functional programming looks like in a language with no generics and no tail-call optimisation, and answers it by rebuilding `map` — and then functors — on top of `reflect` and `interface{}`.
 
+Go has generics now. **[`fpgen/`](fpgen/)** is the same library rebuilt on type parameters, paired with **[`docs/teaching-generics.md`](docs/teaching-generics.md)**, a curriculum that teaches Go generics through the difference between the two packages — what each concept deletes from `fp`, and the two shapes (methods can't take type parameters; there's no way to abstract over a type constructor) that generics still cannot express. Read `fp/` first for the talk as given in 2015; read `fpgen/` and the curriculum for what changes with generics, and what doesn't.
+
 ## Status
 
-**Complete.** `sum/`, the `fp/` library and both examples are implemented and tested.
+**Complete.** `sum/`, the `fp/` library, `fpgen/`, and both examples are implemented and tested.
 
 The original repo shown in the talk has been lost. What survives is the slide deck, and this repository is an attempt to recover the code from it. That means the code here is a *reconstruction*, not the 2015 original: where the slides are ambiguous or contain typos, choices have been made. Every such choice is recorded in [`NOTES.md`](NOTES.md).
 
@@ -32,7 +34,8 @@ What the reconstruction has *learned*. These describe this repository — the ch
 ## Layout
 
 ```
-fp/       Func, NewFunc, Must, Compose, List, Maybe, Many
+fp/       Func, NewFunc, Must, Compose, List, Maybe, Many          (reflect, no generics — the talk as given)
+fpgen/    Map, Filter, Reduce, Compose, List[T], Maybe[T], Many[T] (generics — see docs/teaching-generics.md)
 sum/      SumI, SumR, SumTR, SumTRG + benchmarks
 examples/
   weather/   Person -> Address -> City -> Weather   (Maybe)

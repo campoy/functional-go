@@ -148,6 +148,45 @@ The expectation was that a modern linter would object to the deliberate 2015-era
 
 Enabling the non-default `ST*` checks was tried and rejected: the only thing it surfaced was a doc-comment phrasing nit, which is not worth the maintenance.
 
+## `fpgen` (the generics counterpart)
+
+`fpgen/` is `fp`'s sibling, not a replacement — `fp` is unchanged. See
+`docs/teaching-generics.md` for the full lesson-by-lesson comparison; this
+section only records `fpgen`'s own departures from a literal
+transliteration of `fp`, in this file's usual style.
+
+- **`Maybe[T]` uses `value T; ok bool`, not a nil check.** `fp.Maybe`
+  distinguishes present from missing by inspecting `Value` (nil, or a typed
+  nil pointer via `isNilPtr`), which is the mechanism behind a live
+  regression on `main` (`functional-go-maybe-nil`, not fixed here — see
+  `docs/teaching-generics.md` lesson 7). `ok` makes the bug class
+  unrepresentable rather than inspecting anything.
+- **`Map`, `ListMap`, `MaybeMap`, `ManyMap` are four different names for
+  what `fp` spells `Map` three times plus a slice `Map` it never had.** A
+  method's name lives in its receiver's namespace; a free function's name
+  lives in the one flat package namespace, and Go has no overloading. Since
+  methods cannot have type parameters (lesson 5, "THE FIRST WALL"), all of
+  `fp.List.Map`/`fp.Maybe.Map`/`fp.Many.Map`'s generic counterparts have to
+  be free functions, and so cannot share fp's one name.
+- **`Many.Map`'s implicit flattening is split into `ManyMap` and
+  `FlatMap`.** `fp.Many.Map` decides whether to flatten by inspecting the
+  *result's* `reflect.Kind` at run time (`toSlice`); `func(A) B` and
+  `func(A) []B` are different Go types, so there is no single generic
+  signature that accepts either. See lesson 8.
+- **No `Do`.** `fp.Maybe.Do`/`fp.Many.Do`'s heterogeneous variadic chain has
+  no generic signature — Go's variadics are homogeneous. `fpgen/chain.go`
+  offers `Chain2`/`Chain3` (fixed arity) as the closest honest alternative;
+  see lesson 9, "THE SECOND WALL."
+- **No `Mapper` interface**, same reason `fp` has none (slide 47): even
+  granting free-function `Map`s, Go cannot abstract over a type constructor
+  (no higher-kinded types). See lesson 10, "THE THIRD WALL."
+- **`go.mod` stays at `go 1.21`.** Go 1.27 lifted the "methods cannot have
+  type parameters" restriction (gated behind declaring `go 1.27`); this
+  repo's floor is a standing constraint (`AGENTS.md`) and was not raised for
+  this work, so `fpgen/wall_test.go` pins its diagnostics with
+  `-gcflags=-lang=go1.21` explicitly rather than trusting the ambient
+  toolchain default.
+
 ## Modernizations deliberately refused
 
 The talk exists because Go 1.5 had no generics. Rewriting any of this with type parameters would erase the subject matter, so:
