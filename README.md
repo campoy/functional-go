@@ -43,7 +43,7 @@ examples/
 
 - **`Func`** wraps an arbitrary function as a reflection-backed value carrying its input and output `reflect.Type`. `Compose` uses those types to reject mismatched pairs at composition time.
 - **`List`** is a cons cell with a `Map` method — the starting point.
-- **`Maybe`** short-circuits a chain the moment a step yields nil, including a typed nil pointer, which is what makes nil-safe method chaining work.
+- **`Maybe`** short-circuits a chain the moment a value is nil — including a typed nil pointer, whether a step returned it or the `Maybe` was built around one — which is what makes nil-safe method chaining work.
 - **`Many`** maps and flattens, so a step returning `[]string` chains cleanly onto a step returning `string`.
 
 `Maybe` and `Many` each also have a `Do(fs ...interface{})` that builds the whole chain from plain functions and returns an error on any type mismatch.

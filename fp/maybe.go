@@ -15,11 +15,10 @@ type Maybe struct {
 // apply f to (slide 78).
 //
 // The deck gives two bodies. Slide 52 checks only m.Value == nil. Slide 78, in
-// the appendix, adds a check for a nil pointer, and that is the one
-// implemented here: a Go method returns a typed nil pointer, not a nil
-// interface, so slide 52's version sees a non-nil m.Value and keeps calling
-// down a chain that has already broken. The weather example does not work
-// without this. See NOTES.md.
+// the appendix, adds a check for a nil pointer, and that is the one implemented
+// here: a Go method returns a typed nil pointer, not a nil interface, so slide
+// 52's version sees a non-nil m.Value and keeps calling down a chain that has
+// already broken. The weather example does not work without this.
 //
 // Slide 78 applies that check to the value coming out of f. It is applied to
 // the value going in as well, since a Maybe can be handed a typed nil to begin
