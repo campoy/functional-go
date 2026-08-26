@@ -203,6 +203,23 @@ func TestManyEachPanics(t *testing.T) {
 	}
 }
 
+// TestManyMapTypedNilPanics pins the other half of the typed-nil fix. Many
+// does not short-circuit -- it has no notion of an absent element -- so a step
+// returning a typed nil leaves a nil *box where the next step wants a box.
+// argValue used to substitute the zero box and report the answer as a success;
+// now it says so.
+func TestManyMapTypedNilPanics(t *testing.T) {
+	type box struct{ n int }
+
+	none := Must(NewFunc(func(b box) *box { return nil }))
+	get := Must(NewFunc(func(b box) int { return b.n }))
+
+	assert.PanicsWithValue(t,
+		"can't dereference a nil *fp.box to call a function taking fp.box",
+		func() { NewMany([]box{{7}}).Map(none).Map(get) },
+		"Many chain over a step returning a typed nil")
+}
+
 func TestToSlice(t *testing.T) {
 	tests := []struct {
 		name string
