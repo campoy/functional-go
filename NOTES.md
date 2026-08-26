@@ -177,9 +177,12 @@ transliteration of `fp`, in this file's usual style.
   no generic signature — Go's variadics are homogeneous. `fpgen/chain.go`
   offers `Chain2`/`Chain3` (fixed arity) as the closest honest alternative;
   see lesson 9, "THE SECOND WALL."
-- **No `Mapper` interface**, same reason `fp` has none (slide 47): even
-  granting free-function `Map`s, Go cannot abstract over a type constructor
-  (no higher-kinded types). See lesson 10, "THE THIRD WALL."
+- **No `Mapper` interface**, same reason `fp` has none (slide 47), on two
+  independent grounds: a type parameter on a method declared inside an
+  interface is rejected (`interface method must have no type parameters`,
+  still true at `go 1.27`, unlike lesson 5's concrete-method restriction —
+  see below), and even granting that, Go cannot abstract over a type
+  constructor (no higher-kinded types). See lesson 10, "THE THIRD WALL."
 - **`go.mod` stays at `go 1.21`.** Go 1.27 lifted the "methods cannot have
   type parameters" restriction (gated behind declaring `go 1.27`); this
   repo's floor is a standing constraint (`AGENTS.md`) and was not raised for

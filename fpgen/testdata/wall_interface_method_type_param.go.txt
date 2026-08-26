@@ -1,0 +1,38 @@
+// This file does not compile, on purpose. It is lesson 10, THE THIRD WALL,
+// in docs/teaching-generics.md.
+//
+// Go 1.27 lifted the restriction lesson 5 relies on -- a generic method on a
+// CONCRETE type is legal there (see wall_method_type_param.go, and note this
+// file is built at -lang=go1.27, not go1.21, precisely because 1.27 is where
+// that distinction becomes visible: at go1.21 both files fail the same way,
+// which would hide the point). What is attempted here is different and
+// fails for a different, narrower reason: a type parameter on a method
+// declared inside an INTERFACE, rather than on a concrete type's method.
+// That one Go still rejects, at 1.27 and, as far as the language spec goes,
+// indefinitely -- it is not gated behind a language version the way lesson
+// 5's restriction was.
+//
+// It has a .go.txt extension, not .go: go/parser (what gofmt uses) rejects a
+// type-parameter list on an interface method as a syntax error, not just a
+// type-check error the way cmd/compile does for the concrete-method case in
+// wall_method_type_param.go -- so as a plain .go file it would make
+// `gofmt -l .` fail on this repository even though it is deliberately never
+// built by `go build ./...` (a bare .go file WOULD be, since go/build's
+// testdata skip only excludes it from package pattern discovery like ./...,
+// not from an explicit file argument or gofmt's directory walk).
+//
+// fpgen/wall_test.go's TestWallInterfaceMethodTypeParams copies this file's
+// text into a temporary .go file and runs
+// `go build -gcflags=-lang=go1.27` on that copy, so lesson 10's closing
+// argument rests on a checked fact rather than a claim that could go stale
+// the way lesson 5's did.
+package testdata
+
+type List[A any] struct {
+	Head A
+	Tail *List[A]
+}
+
+type Mapper[A any] interface {
+	Map[B any](f func(A) B) *List[B]
+}

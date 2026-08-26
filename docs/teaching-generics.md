@@ -343,8 +343,8 @@ type Mapper interface {
 }
 ```
 
-**After — still unspellable, in a new way:** with generics, the naive
-attempt is
+**After — still unspellable, but not for the reason lesson 5 might suggest:**
+with generics, the naive attempt is
 
 ```go
 type Mapper[A any] interface {
@@ -352,19 +352,52 @@ type Mapper[A any] interface {
 }
 ```
 
-and it fails **twice over**: methods cannot have type parameters (lesson
-5's wall, so `Map` can't be a method here either), and even granting that,
-Go has no way to abstract over "some container type constructor `F`" so
-that `Mapper[F, A]` could say `Map(func(A) B) F[B]` for whichever `F` — a
-*higher-kinded type parameter*, a type parameter that is itself generic.
-Go's type parameters range over types, never over generic type constructors.
+It is tempting to reach for lesson 5's wall here — "methods can't have type
+parameters, so `Map` can't be a method inside this interface either." That
+reasoning is now **wrong**, and saying so is the point: lesson 5's wall is
+gated behind a language version, `go 1.27` lifted it, and a generic method
+on a *concrete* type compiles fine there —
+`TestWallMethodTypeParamsLiftedAtGo127` in `fpgen/wall_test.go` builds
+`wall_method_type_param.go` at `-gcflags=-lang=go1.27` and asserts it
+succeeds, the same file that `TestWallMethodTypeParams` asserts *fails* at
+`-lang=go1.21`. Reusing lesson 5's reason here would make lesson 10 rest on
+a rule that has already fallen three sections earlier.
+
+The real reason is narrower, and it holds at `go 1.27` with no version gate
+in sight: **a type parameter on a method declared *inside an interface* is a
+separate rule from a type parameter on a concrete type's method, and Go
+still rejects it.**
+
+```
+interface method must have no type parameters
+```
+
+`TestWallInterfaceMethodTypeParams` (`fpgen/wall_test.go`) copies
+`fpgen/testdata/wall_interface_method_type_param.go.txt` — a `.txt`, not a
+`.go`, because `go/parser` (what `gofmt` uses) treats a type-parameter list
+on an interface method as a syntax error rather than a type-check error,
+which would break this repository's `gofmt -l .` if the file were a plain
+`.go` — into a temporary `.go` file and builds it at `-gcflags=-lang=go1.27`
+— deliberately not `go1.21`, because `1.27` is exactly where the distinction
+between "generic method on a concrete type" (now legal) and "generic method
+inside an interface" (still not) becomes visible; at `1.21` both fail the
+same way, which would hide the point — and pins that exact diagnostic.
+
+Even granting a hypothetical language that allowed generic interface
+methods, a second, independent gap remains: Go has no way to abstract over
+"some container type constructor `F`" so that `Mapper[F, A]` could say
+`Map(func(A) B) F[B]` for whichever `F` — a *higher-kinded type parameter*, a
+type parameter that is itself generic. Go's type parameters range over
+types, never over generic type constructors. This half is unaffected by
+1.27 or any plausible future point release; it is a structural gap in the
+generics design, not a syntax restriction.
 
 So `fpgen.List`, `fpgen.Maybe`, and `fpgen.Many` share no interface, exactly
-as `fp.List`, `fp.Maybe`, and `fp.Many` don't. Generics answers lesson 5's
-version of the question precisely (a method, only when the element type
-doesn't change) and leaves this one exactly where the talk found it. This is
-the closing lesson and it is not hedged: **the talk's central complaint about
-Go survives generics.**
+as `fp.List`, `fp.Maybe`, and `fp.Many` don't — for a sturdier pair of
+reasons than lesson 5's wall alone would give. This is the closing lesson
+and it is not hedged: **the talk's central complaint about Go survives
+generics, and it survives on rules that don't depend on which Go release you
+happen to be running.**
 
 ## 11. What reflection still buys, and what it costs
 
