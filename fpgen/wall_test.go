@@ -196,21 +196,29 @@ func TestWallVariadicChain(t *testing.T) {
 	}
 }
 
-// TestWallVariadicChainSignatureItselfCompiles is the other half of lesson
-// 9's point, and the reason the wall needed a call site to show up at all:
-// the same generic signature the file above declares is legal Go. Chain2
-// and Chain3 below it are legal too. What cannot be written is a single
-// variadic signature that accepts a chain of changing types.
-func TestWallVariadicChainSignatureItselfCompiles(t *testing.T) {
-	dir := t.TempDir()
-	src := "package main\n\nfunc Do[T any](v T, fs ...func(T) T) T {\n\tfor _, f := range fs {\n\t\tv = f(v)\n\t}\n\treturn v\n}\n\nfunc main() { _ = Do(1, func(n int) int { return n + 1 }) }\n"
-	tmpGo := filepath.Join(dir, "variadic_chain_decl.go")
-	require.NoError(t, os.WriteFile(tmpGo, []byte(src), 0o644))
-
-	cmd := exec.Command("go", "build", "-o", filepath.Join(dir, "out"), "-gcflags=-lang=go1.21", tmpGo)
-	out, err := cmd.CombinedOutput()
-	assert.NoError(t, err, "the homogeneous variadic signature must compile on its own; the wall is at the call site, not the declaration: %s", out)
+// wallDo is a package-local copy of the same-type variadic signature
+// declared in testdata/wall_variadic_chain.go (that file is package main and
+// //go:build ignore, so it cannot be imported). Declared here so an ordinary
+// go build / go test / go vet -- checking against this module's own go1.21
+// floor, no shell-out needed -- proves it compiles.
+func wallDo[T any](v T, fs ...func(T) T) T {
+	for _, f := range fs {
+		v = f(v)
+	}
+	return v
 }
+
+type wallPerson struct{ address *wallAddress }
+type wallAddress struct{}
+
+// This is the other half of lesson 9's point, and the reason the wall needed
+// a call site to show up at all: the homogeneous variadic signature is
+// legitimately expressible and compiles -- only the heterogeneous CALL
+// through it (TestWallVariadicChain above) fails. It is a declaration, not a
+// test, because "this compiles" is exactly what a declaration proves, on
+// every build of this package; do not "helpfully" convert it back into a
+// runtime test.
+var _ func(wallPerson, ...func(wallPerson) wallPerson) wallPerson = wallDo[wallPerson]
 
 // TestWallComposeMismatch pins the real diagnostic from lesson 3: a
 // Compose (fpgen/func.go) call whose two functions do not line up fails to
