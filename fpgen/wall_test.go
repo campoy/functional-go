@@ -139,6 +139,15 @@ func TestWallInterfaceMethodTypeParams(t *testing.T) {
 	assert.Contains(t, string(out), "interface method must have no type parameters")
 }
 
+// wantComposeDiagnostic is the exact line a go1.27 or later toolchain prints
+// for testdata/compose_mismatch.go. Like wantGo121Diagnostic above it is
+// quoted verbatim -- by fpgen/func.go's Compose doc comment and by lesson 3
+// of docs/teaching-generics.md -- so pinning it here is what stops those
+// copies drifting from what the compiler really says. Type inference error
+// text is toolchain-dependent and not stabilised by -lang, which is why the
+// pin is guarded and the unconditional assertion below is the looser one.
+const wantComposeDiagnostic = "testdata/compose_mismatch.go:18:27: in call to Compose, type func(n int) int of func(n int) int {…} does not match inferred type func(int) string for func(A) B"
+
 // TestWallComposeMismatch pins the real diagnostic from lesson 3: a
 // Compose (fpgen/func.go) call whose two functions do not line up fails to
 // compile, with the compiler doing the type check fp.Compose does at run
@@ -148,4 +157,9 @@ func TestWallComposeMismatch(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	require.Error(t, err, "compose_mismatch.go must NOT compile: Compose's two functions don't line up")
 	assert.Contains(t, string(out), "does not match inferred type")
+
+	if goMinorVersion(t) >= 27 {
+		assert.Contains(t, string(out), wantComposeDiagnostic,
+			"the diagnostic quoted verbatim in fpgen/func.go and docs/teaching-generics.md must match what the compiler actually prints")
+	}
 }

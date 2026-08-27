@@ -93,14 +93,18 @@ it wrong:
 
 ```go
 Compose(strings.ToUpper, func(n int) int { return n })
-// fpgen/testdata/compose_mismatch.go:18:27: in call to Compose, type func(n int) int
+// testdata/compose_mismatch.go:18:27: in call to Compose, type func(n int) int
 // of func(n int) int {…} does not match inferred type func(int) string for func(A) B
 ```
 
-That is the real compiler output — `TestWallComposeMismatch` in
-`fpgen/wall_test.go` runs `go build` on
-`fpgen/testdata/compose_mismatch.go` and pins it, so this document can't
-drift from what the compiler actually says. Put next to `fp.Compose`'s
+That is the real compiler output (the path is relative to `fpgen/`, where
+the test runs). `TestWallComposeMismatch` in `fpgen/wall_test.go` builds
+`testdata/compose_mismatch.go` and always asserts the call is rejected; on a
+go1.27 or later toolchain it additionally pins the line above character for
+character, so this document can't drift from what the compiler actually
+says. Go's type-inference wording is toolchain-dependent and `-lang` does
+not stabilise it, which is why the exact pin is guarded rather than
+unconditional. Put next to `fp.Compose`'s
 `fmt.Errorf("can't compose: %v != %v", ...)`, this is the talk's whole
 argument landing as two side-by-side diagnostics: one written by a person at
 run time, one produced by the compiler before the program exists.

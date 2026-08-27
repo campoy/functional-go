@@ -77,11 +77,15 @@ func Reduce[A, B any](vs []A, init B, f func(B, A) B) B {
 // else does not type-check:
 //
 //	Compose(strings.ToUpper, func(n int) int { return n })
-//	// fpgen/testdata/compose_mismatch.go:18:27: in call to Compose, type func(n int) int of func(n int) int {…} does not match inferred type func(int) string for func(A) B
+//	// testdata/compose_mismatch.go:18:27: in call to Compose, type func(n int) int of func(n int) int {…} does not match inferred type func(int) string for func(A) B
 //
-// (the real diagnostic, under this module's go1.21 floor -- see
-// fpgen/testdata/compose_mismatch.go and TestWallComposeMismatch in
-// fpgen/wall_test.go, which runs `go build` on that exact file). Argument
+// (the real diagnostic, under this module's go1.21 floor, as printed from
+// fpgen/ where the test runs -- see fpgen/testdata/compose_mismatch.go and
+// TestWallComposeMismatch in fpgen/wall_test.go, which builds that file and
+// always asserts the call is rejected, plus pins the line above character
+// for character on a go1.27 or later toolchain. Go's type-inference wording
+// is toolchain-dependent, so an older toolchain phrases the same rejection
+// differently). Argument
 // order matches fp.Compose: mathematical
 // composition, g first, which still reads backwards to most people and is
 // kept for the same reason fp kept it -- it is what slide 77 prints.
