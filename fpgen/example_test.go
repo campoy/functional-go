@@ -109,8 +109,11 @@ func ExampleChain4() {
 	// the caller cannot do is leave it out: one spelling or the other has to
 	// appear here, at the call site. fp.Maybe.Do names neither, because
 	// argValue (fp/func.go) makes the same three conversions at run time,
-	// invisibly -- and, like both spellings above, panics rather than
-	// substituting a value when the pointer is nil.
+	// invisibly. The nil case then differs: both spellings above panic on a
+	// nil pointer, and so does argValue -- but a Maybe chain never reaches
+	// it, since Maybe.Map short-circuits a typed nil at both ends first
+	// (fp/maybe.go, lesson 7). fp.Many, which has no such guard, does reach
+	// the panic.
 	p := chainPerson{addr: &chainAddress{city: &chainCity{weather: &chainWeather{desc: "cloudy"}}}}
 
 	got := fpgen.Chain4(p,
