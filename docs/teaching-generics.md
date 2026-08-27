@@ -212,9 +212,10 @@ have a precise, checkable answer even where the wall applies: **a method,
 only when the element type does not change.** `fpgen.List[T].Reverse()`
 (`fpgen/list.go`) needs no second type parameter and is a legal method;
 `ListMap` (`A` in, `B` out) does, and is a free function. `fpgen.List`,
-`fpgen.Maybe`, and `fpgen.Many` therefore still share no common `Map`
-interface, for the same reason `fp`'s three containers don't (slide 47 —
-see lesson 10) — just for a related but distinct reason now.
+`fpgen.Maybe` and `fpgen.Many` do still share no common `Map` interface,
+as `fp`'s three containers don't (slide 47) — but not because of this wall.
+Lesson 10 gives the two reasons that do hold, and both are independent of
+the version-gated rule here.
 
 A smaller, secondary consequence worth naming: `fp.List.Map`, `fp.Maybe.Map`
 and `fp.Many.Map` are three methods sharing one name because a method lives

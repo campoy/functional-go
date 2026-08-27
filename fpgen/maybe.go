@@ -72,16 +72,16 @@ func (m Maybe[T]) Get() (T, bool) {
 	return m.value, m.ok
 }
 
-// Map returns Some(f(v)) if m holds v, or None if m is empty (lesson 7;
+// MaybeMap returns Some(f(v)) if m holds v, or None if m is empty (lesson 7;
 // compare fp.Maybe.Map, fp/maybe.go).
 //
-// A free function, for the same reason fpgen's List.Map is (lesson 5): T and
-// U differ, and a method cannot introduce U on its own.
+// A free function, for the same reason ListMap is (lesson 5): T and U
+// differ, and a method cannot introduce U on its own.
 //
 // Note what this Map does NOT need: fp.Maybe.Map checks isNilPtr at both
 // ends, because a Go method handed a typed nil pointer and a Go method
 // handed nil both have to be told apart from a genuine value by inspecting
-// the interface{} they arrived in. Map here only ever asks m.ok. If T
+// the interface{} they arrived in. MaybeMap only ever asks m.ok. If T
 // happens to be a pointer type and f legitimately wants to receive a nil
 // *U -- fp.Maybe.Map's regression is exactly that it refuses to let this
 // happen -- Some[*U](nil) represents that on purpose: present, and the

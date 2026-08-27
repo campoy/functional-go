@@ -168,6 +168,14 @@ transliteration of `fp`, in this file's usual style.
   methods cannot have type parameters (lesson 5, "THE FIRST WALL"), all of
   `fp.List.Map`/`fp.Maybe.Map`/`fp.Many.Map`'s generic counterparts have to
   be free functions, and so cannot share fp's one name.
+- **`Each` stays a method, where `ManyMap` and `FlatMap` are free
+  functions.** `Each` introduces no second type parameter, so lesson 5's wall
+  does not reach it and it keeps `fp.Many.Each`'s shape, the same way
+  `List.Reverse` keeps its own; `ManyMap` and `FlatMap` change the element
+  type and cannot. The two shapes side by side in `fpgen/many.go` are the
+  wall made visible at the call site. `fp.Many.Each` additionally reflects on
+  `f` because a `func(T)` with no result cannot go through `NewFunc`;
+  `fpgen`'s needs no such carve-out.
 - **`Many.Map`'s implicit flattening is split into `ManyMap` and
   `FlatMap`.** `fp.Many.Map` decides whether to flatten by inspecting the
   *result's* `reflect.Kind` at run time (`toSlice`); `func(A) B` and
@@ -202,6 +210,11 @@ transliteration of `fp`, in this file's usual style.
   this work, so `fpgen/wall_test.go` pins its diagnostics with
   `-gcflags=-lang=go1.21` explicitly rather than trusting the ambient
   toolchain default.
+
+What reflection actually costs next to generics — the benchmark, its five
+runs, the machine, the input size, and the `pprof` breakdown of `fp`'s two
+extra allocations per element — is in
+[`docs/investigations/generics-vs-reflection.md`](docs/investigations/generics-vs-reflection.md).
 
 ## Modernizations deliberately refused
 

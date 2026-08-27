@@ -82,11 +82,17 @@ func FlatMap[A, B any](m *Many[A], f func(A) []B) *Many[B] {
 // Each applies f to every element of m for its side effects (compare
 // fp.Many.Each, fp/many.go).
 //
+// A method, where ManyMap and FlatMap above are free functions -- lesson 5's
+// rule showing at the call site rather than in prose. Those two change the
+// element type, which takes a second type parameter no method can introduce;
+// Each has no second type parameter to introduce, so it stays a method, the
+// same way List.Reverse (fpgen/list.go) does.
+//
 // fp.Many.Each does its own reflection because a func(T) with no result
-// cannot go through NewFunc, which requires exactly one. Each[T any](m
-// *Many[T], f func(T)) needs no such carve-out -- there was never a NewFunc
-// to route through in the first place, so there is nothing to work around.
-func Each[T any](m *Many[T], f func(T)) {
+// cannot go through NewFunc, which requires exactly one. This needs no such
+// carve-out -- there was never a NewFunc to route through in the first
+// place, so there is nothing to work around.
+func (m *Many[T]) Each(f func(T)) {
 	for ; m != nil; m = m.Tail {
 		f(m.Head)
 	}

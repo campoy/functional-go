@@ -44,6 +44,6 @@ func TestFlatMapAppliesInListOrder(t *testing.T) {
 func TestEach(t *testing.T) {
 	m := fpgen.NewMany([]string{"a", "bb", "a", "bb", "bb"})
 	count := map[string]int{}
-	fpgen.Each(m, func(s string) { count[s]++ })
+	m.Each(func(s string) { count[s]++ })
 	assert.Equal(t, map[string]int{"a": 2, "bb": 3}, count)
 }

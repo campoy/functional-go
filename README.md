@@ -30,6 +30,7 @@ What the reconstruction has *learned*. These describe this repository — the ch
 - [`docs/investigations/`](docs/investigations/) — long-form findings, with the evidence needed to re-derive them:
   - [`tail-recursion.md`](docs/investigations/tail-recursion.md) — does Go eliminate tail calls? (No. Here is how that was established.)
   - [`benchmark-input-size.md`](docs/investigations/benchmark-input-size.md) — how many elements do the benchmarks sum? (The deck does not say; here is the bracketing argument for 1000.)
+  - [`generics-vs-reflection.md`](docs/investigations/generics-vs-reflection.md) — what does reflection cost next to generics? (`fp` and `fpgen` mapping over the same 1000-element list, with the allocations accounted for.)
 
 ## Layout
 
