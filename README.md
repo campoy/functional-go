@@ -4,9 +4,11 @@ A reconstruction of the code from **"Functional Go?"**, a talk by [Francesc Camp
 
 The talk asks what functional programming looks like in a language with no generics and no tail-call optimisation, and answers it by rebuilding `map` — and then functors — on top of `reflect` and `interface{}`.
 
+Go has generics now. **[`fpgen/`](fpgen/)** is the same library rebuilt on type parameters, paired with **[`docs/teaching-generics.md`](docs/teaching-generics.md)**, a curriculum that teaches Go generics through the difference between the two packages — what each concept deletes from `fp`, and the three walls where the deleting stops: a method still cannot take type parameters of its own at the `go 1.21` this module declares (`go 1.27` lifts that one); a chain whose type changes at every step has no generic signature at all, because Go's variadics are homogeneous; and the shared `Mapper` interface the talk wanted still cannot be written — an interface method may not have type parameters, which `go 1.27` does *not* lift, and Go cannot abstract over a type constructor. Read `fp/` first for the talk as given in 2015; read `fpgen/` and the curriculum for what changes with generics, and what doesn't.
+
 ## Status
 
-**Complete.** `sum/`, the `fp/` library and both examples are implemented and tested.
+**Complete.** `sum/`, the `fp/` library, `fpgen/`, and both examples are implemented and tested.
 
 The original repo shown in the talk has been lost. What survives is the slide deck, and this repository is an attempt to recover the code from it. That means the code here is a *reconstruction*, not the 2015 original: where the slides are ambiguous or contain typos, choices have been made. Every such choice is recorded in [`NOTES.md`](NOTES.md).
 
@@ -28,11 +30,13 @@ What the reconstruction has *learned*. These describe this repository — the ch
 - [`docs/investigations/`](docs/investigations/) — long-form findings, with the evidence needed to re-derive them:
   - [`tail-recursion.md`](docs/investigations/tail-recursion.md) — does Go eliminate tail calls? (No. Here is how that was established.)
   - [`benchmark-input-size.md`](docs/investigations/benchmark-input-size.md) — how many elements do the benchmarks sum? (The deck does not say; here is the bracketing argument for 1000.)
+  - [`generics-vs-reflection.md`](docs/investigations/generics-vs-reflection.md) — what does reflection cost next to generics? (`fp` and `fpgen` mapping over the same 1000-element list, with the allocations accounted for.)
 
 ## Layout
 
 ```
-fp/       Func, NewFunc, Must, Compose, List, Maybe, Many
+fp/       Func, NewFunc, Must, Compose, List, Maybe, Many          (reflect, no generics — the talk as given)
+fpgen/    Map, Filter, Reduce, Compose, List[T], Maybe[T], Many[T] (generics — see docs/teaching-generics.md)
 sum/      SumI, SumR, SumTR, SumTRG + benchmarks
 examples/
   weather/   Person -> Address -> City -> Weather   (Maybe)
@@ -115,13 +119,13 @@ go test ./sum -bench . -benchmem -count=5
 
 ## Constraints
 
-The reconstruction deliberately keeps the code as it would have been written in 2015:
+The reconstruction — `fp/`, `sum/` and the examples — deliberately keeps the code as it would have been written in 2015:
 
 - no generics — `reflect` and `interface{}` throughout
 - no third-party dependencies in the library or examples themselves — `testify` is used in the tests, and nowhere else
 - the API surface stays exactly as the slides show it
 
-Modern Go would write most of this with type parameters in a fraction of the space. That is rather the point of the talk, and improving the code would erase it.
+Modern Go would write most of this with type parameters in a fraction of the space. That is rather the point of the talk, and improving the code in place would erase it — so the generic rewrite lives beside it, as [`fpgen/`](fpgen/), and never inside it.
 
 ## Takeaways from the talk
 

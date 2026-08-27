@@ -1,0 +1,595 @@
+# Teaching generics through fp and fpgen
+
+`fp` (`fp/`) is the reflection-based library the 2015 talk built because Go
+1.5 had no generics. `fpgen` (`fpgen/`) is the same library rebuilt on Go's
+type parameters. Neither package is complete on its own as a lesson; the
+lesson is the *difference* between them. Every entry below points at a
+specific before-in-`fp` / after-in-`fpgen` pair, not a generics feature in
+the abstract.
+
+Some of the talk's shapes still cannot be written, even with generics.
+They are the three walls — lessons 5, 9 and 10 below — and they are not
+softened: the honest limits of Go's generics are as much the point of this
+document as the features are.
+
+The three do not all stand in the same place, and the difference matters
+enough to say up front:
+
+| Wall | Lesson | Enforced at | Established by | What the compiler rejects |
+| --- | --- | --- | --- | --- |
+| Methods cannot have type parameters | 5 | **Declaration** (lifted in go1.27) | **Compiler** — `TestWallMethodTypeParams` | the method declaration itself |
+| Heterogeneous variadic chains | 9 | **Call site** | **Compiler** — `TestWallVariadicChain` | a call; every candidate signature *declares* fine |
+| Generic methods inside an interface | 10 | **Declaration** | **Compiler** — `TestWallInterfaceMethodTypeParams` | the interface declaration itself |
+| No higher-kinded types | 10 | **Nowhere — inexpressible** | **Argument** — no declaration exists to reject | nothing; the shape cannot be written down at all |
+
+The four rows are the three walls. Wall 3 is named for what it blocks, not
+for either reason it's blocked — slide 47's `Mapper` interface still cannot
+be written — and the table's last two rows are its two independent supports,
+not two separate walls: one tested, one argued, both holding up the same
+refusal. The differences between all three walls are part of what this
+document teaches, not fine print. Wall 1 announces itself at the
+declaration, and `go1.27` lifted it for concrete types: it is a wall for
+*this repository*, pinned at its deliberate `go 1.21` floor, rather than for
+the language forever, and lesson 5 says so plainly. Wall 2 lets you write
+the signature, compiles it happily, and only objects when you feed it a
+chain whose type changes at every step — which is why it is the one people
+expect generics to have solved. Wall 3 stands in two places at once: its
+first half is a declaration the compiler refuses outright, with no version
+gate in sight; its second half is not a rejection at all, because there is
+no way to write a higher-kinded declaration down for a compiler to refuse.
+
+Wherever a compiler rejection exists — the first three rows — it is pinned
+by a real `go build` diagnostic in `fpgen/wall_test.go`, asserted against
+actual compiler output rather than described. The fourth row is established
+by argument, and can only be: a shape the language cannot express produces
+no diagnostic to capture. Both halves of wall 3 hold; they are simply
+reached by different means, and the argument is no weaker for being an
+argument.
+
+`fp` is unchanged by this work — see `NOTES.md`'s "fpgen" section for
+`fpgen`'s own departures from a literal transliteration.
+
+---
+
+## 0. The setup
+
+**Before:** slides 24-29 of the deck. With generics you would write
+
+```go
+func Map(f func(a α) β, vs []α) []β
+```
+
+but Go 1.5 had none, so every parameter collapses to `interface{}`:
+
+```go
+func Map(f interface{}, vs []interface{}) []interface{}
+```
+
+and all static type safety is gone — nothing stops a caller passing a
+`func(int) string` and a `[]bool`. Nothing is taught yet; this is the
+problem the rest of the document answers, piece by piece.
+
+## 1. Type parameters on functions
+
+**Before:** `fp.Func`, `fp.NewFunc`, `fp.Must` (`fp/func.go`). Because
+`interface{}` erases a function's argument and result types, `fp` has to
+reconstruct them at run time: `NewFunc` uses `reflect` to inspect `f`, checks
+its arity, and stores its `in`/`out` `reflect.Type`s in a `Func` so later
+code (`Compose`, `List.Map`, `Do`) can check them again. `Must` exists purely
+so `NewFunc`'s `error` can be unwrapped inline at a call site — an entire
+error-returning constructor and its panic-wrapper, both there only to carry
+information a compiler with type parameters carries for free.
+
+**After:** `fpgen.Map[A, B any](vs []A, f func(A) B) []B`
+(`fpgen/func.go`). One line. `Func`, `NewFunc`, and `Must` do not exist in
+`fpgen` at all — there is nothing left to reconstruct, and nothing to
+validate, because a mismatched `f` is a compile error before `Map` ever
+runs.
+
+**Concept:** a type parameter list on a function (`[A, B any]`) lets the
+signature refer to types supplied at the call site, so the compiler enforces
+what `NewFunc`'s reflection used to check by hand, before the program runs
+rather than the first time it's called.
+
+## 2. Type inference
+
+**Before:** nothing to infer — `interface{}` has no type argument to leave
+out.
+
+**After:** `fpgen.Map(vs, strings.ToUpper)` compiles with no type arguments
+written anywhere; the compiler infers `A` and `B` from `vs`'s and
+`strings.ToUpper`'s types. `fpgen.None[int]()` (`fpgen/maybe.go`) is the
+boundary: `None` takes no arguments at all, so there is nothing for
+inference to look at, and the type argument must be given explicitly.
+Inference works from the types of arguments (and, since Go 1.21, from
+context in some assignments); it never works from a return type alone with
+no other clue. That is the rule that trips people up in practice — not "does
+inference work," but "does *this* call give the compiler enough to look at."
+
+## 3. Compose, and the check moving to compile time
+
+**Before:** `fp.Compose` (`fp/func.go`), the talk's punchline. Its entire
+body is one comparison:
+
+```go
+if g.out != f.in {
+	return nil, fmt.Errorf("can't compose: %v != %v", g.out, f.in)
+}
+```
+
+— two `reflect.Type` values, reconstructed by hand, compared at the moment
+`Compose` is *called*. It is the static type system, reimplemented in
+`reflect.Type` equality, because the `interface{}` signature threw the real
+one away.
+
+**After:** `fpgen.Compose[A, B, C any](f func(B) C, g func(A) B) func(A) C`
+(`fpgen/func.go`). There is no error return, because there is no way to call
+it wrong:
+
+```go
+Compose(strings.ToUpper, func(n int) int { return n })
+// testdata/compose_mismatch.go:18:27: in call to Compose, type func(n int) int
+// of func(n int) int {…} does not match inferred type func(int) string for func(A) B
+```
+
+That is the real compiler output (the path is relative to `fpgen/`, where
+the test runs). `TestWallComposeMismatch` in `fpgen/wall_test.go` builds
+`testdata/compose_mismatch.go` and always asserts the call is rejected; on a
+go1.27 or later toolchain it additionally pins the line above character for
+character, so this document can't drift from what the compiler actually
+says. Go's type-inference wording is toolchain-dependent and `-lang` does
+not stabilise it, which is why the exact pin is guarded rather than
+unconditional. Put next to `fp.Compose`'s
+`fmt.Errorf("can't compose: %v != %v", ...)`, this is the talk's whole
+argument landing as two side-by-side diagnostics: one written by a person at
+run time, one produced by the compiler before the program exists.
+
+## 4. Generic types
+
+**Before:** `fp.List` (`fp/list.go`) — `Head interface{}`, `Tail *List` —
+holds anything, and gives back `interface{}`, so every read needs a type
+assertion.
+
+**After:** `fpgen.List[T any]` (`fpgen/list.go`):
+
+```go
+type List[T any] struct {
+	Head T
+	Tail *List[T]
+}
+```
+
+**Concept:** a type parameter on a type declaration, instantiated at use
+(`List[string]`, `*List[List[int]]`). Inside the type's own body, `T` is
+just an ordinary in-scope identifier — the recursive field is `Tail
+*List[T]`, not `Tail *List`, because a bare `*List` would be missing a type
+argument.
+
+## 5. THE FIRST WALL — methods cannot have type parameters
+
+**Before:** slide 36 asks, of `fp.List.Map`, "Should this be a method? Of
+what?" and slide 37 answers by making it one:
+`func (l *List) Map(f *Func) *List`.
+
+**After — the wall:** the direct generic transliteration does not compile:
+
+```go
+func (l *List[A]) Map[B any](f func(A) B) *List[B] { ... }
+```
+
+Building `fpgen/testdata/wall_method_type_param.go` under this module's
+declared `go 1.21` (`go.mod`) gives:
+
+```
+testdata/wall_method_type_param.go:17:23: generic method requires go1.27 or later (-lang was set to go1.21; check go.mod)
+```
+
+(run from `fpgen/`, which is why the path is relative to that directory).
+`TestWallMethodTypeParams` in `fpgen/wall_test.go` runs `go build
+-gcflags=-lang=go1.21` on that file and asserts the compiler really rejects
+it, so this claim is a checked fact, not an assertion. On a go1.27 or later
+toolchain it additionally pins the line above character for character,
+position included, so an edit to the testdata file cannot quietly falsify
+this quote. A toolchain older than 1.27 has no version gate to report and
+rejects the same file in its parser instead (`method must have no type
+parameters`), so the test accepts that spelling as well — the wall is the
+same, only the wording differs.
+
+**The nuance, stated precisely because it changes the shape of the lesson:**
+Go 1.27 *did* lift this restriction — generic methods are real Go as of that
+release, gated behind declaring `go 1.27` or later in `go.mod`. This
+repository's `go.mod` deliberately stays at `go 1.21` (a standing constraint
+— see `AGENTS.md`), so the wall is real *for this repository*, and for
+every module that has not raised its floor past 1.27. It is not, as of this
+writing, a permanent feature of the Go language — it is a feature of *this
+module's declared floor*, which is exactly why `-lang=go1.21` is pinned
+explicitly in the test rather than left to whatever toolchain happens to be
+installed: the day the ambient default catches up to 1.27, an unpinned test
+would silently stop demonstrating anything.
+
+Slide 36's question — "should this be a method? of what?" — turns out to
+have a precise, checkable answer even where the wall applies: **a method,
+only when the element type does not change.** `fpgen.List[T].Reverse()`
+(`fpgen/list.go`) needs no second type parameter and is a legal method;
+`ListMap` (`A` in, `B` out) does, and is a free function. `fpgen.List`,
+`fpgen.Maybe` and `fpgen.Many` do still share no common `Map` interface,
+as `fp`'s three containers don't (slide 47) — but not because of this wall.
+Lesson 10 gives the two reasons that do hold, and both are independent of
+the version-gated rule here.
+
+A smaller, secondary consequence worth naming: `fp.List.Map`, `fp.Maybe.Map`
+and `fp.Many.Map` are three methods sharing one name because a method lives
+in its receiver type's namespace. Free functions share one flat package
+namespace with no overloading, so `fpgen` cannot give all three the name
+`Map` — `Map` itself already names the slice function from lesson 1. They
+are `ListMap`, `MaybeMap` (`fpgen/maybe.go`), and `ManyMap`
+(`fpgen/many.go`).
+
+## 6. Constraints
+
+**Before:** `fp`'s unexported `quote` (`fp/list.go`) — a runtime type switch
+on `interface{}`:
+
+```go
+func quote(v interface{}) string {
+	if s, ok := v.(string); ok {
+		return fmt.Sprintf("%q", s)
+	}
+	return fmt.Sprintf("%v", v)
+}
+```
+
+**After, and the half-lesson people miss:** `fpgen.Quote[T any]`
+(`fpgen/constraints.go`) keeps the *exact same shape*, dynamic assertion
+included. `T any` is the constraint that promises nothing about `T`, so
+there is nothing for the compiler to check and the run-time `any(v).(string)`
+stays. **An unconstrained type parameter does not remove a run-time check —
+it just spells `interface{}` as `any`.**
+
+The other half is `fpgen.Max[T cmp.Ordered]` in the same file: `cmp.Ordered`
+(stdlib, `go 1.21`) promises `>` is defined for `T`, so `Max`'s body needs no
+type switch and no `reflect` import at all — a `T` that doesn't satisfy
+`cmp.Ordered` fails to *instantiate* `Max[T]`, at the call site, before the
+program runs. The same file also has `Sum[T Number]` (a union/approximation
+constraint, `~int | ~int32 | ... `, so a defined type like `type Cents int`
+still qualifies) and `Describe[T Named]` (a method constraint, `interface {
+Name() string }`). Each is the same move: state, as a constraint, the one
+fact the function actually needs, and let the compiler enforce it instead of
+inspecting a `reflect.Kind` at run time. `Quote` is the honest counter-case
+that keeps the lesson from overclaiming: a constraint only buys what it
+actually promises, and `any` promises nothing.
+
+## 7. The zero value
+
+**Before, and this is the strongest lesson because it is a real bug on this
+repo's `main` branch, not a hypothetical:** `fp.Maybe` (`fp/maybe.go`) has
+no "present" field — it distinguishes present from missing by *inspecting*
+`Value`: `nil` means missing, and (per the slide-78 fix) so does a typed nil
+pointer, found via `reflect.ValueOf(x).IsNil()`. Its current `Map` is:
+
+```go
+func (m Maybe) Map(f *Func) Maybe {
+	if m.Value == nil || isNilPtr(m.Value) {
+		return Maybe{}
+	}
+	...
+}
+```
+
+This short-circuits on **any** typed nil pointer, unconditionally — it never
+asks whether the step it's about to skip could have handled one. `fpgen`'s
+own test, `TestMaybeNilRegressionContrast` (`fpgen/maybe_test.go`),
+demonstrates it directly: a `*box` with a nil-safe pointer-receiver method
+(`func (b *box) Get() int { if b == nil { return -1 }; return b.n }`) holding
+a nil receiver has a real, well-defined answer. `fp.Maybe{Value:
+(*box)(nil)}.Do((*box).Get)` never calls it — the answer is discarded before
+the step runs, and no error is reported; the call just returns `Maybe{}`. A
+green pipeline did not catch this because no test had ever named the case;
+it is tracked separately as `functional-go-maybe-nil` and is not fixed by
+this package.
+
+**After:** `fpgen.Maybe[T]` (`fpgen/maybe.go`):
+
+```go
+type Maybe[T any] struct {
+	value T
+	ok    bool
+}
+```
+
+`ok` is the only thing `MaybeMap` and `Get` ever consult. There is no nil to
+be typed or untyped, no pointer to dereference, no `reflect.Value.IsNil` to
+call — the entire bug class is **unrepresentable**, not merely untested. A
+present `*box` that happens to be nil is still present (`ok == true`); its
+nil-safe method runs and its answer comes through, which is exactly what the
+second half of `TestMaybeNilRegressionContrast` checks.
+
+**Concept:** `var zero T` is a real value of `T` — `0`, `""`, a nil slice, a
+zero-valued struct, whatever `T`'s zero value is — that a generic function
+can produce without knowing anything else about `T`. `Maybe[T]`'s `value`
+field holds exactly that zero value whenever `ok` is `false`, and nothing is
+ever allowed to read it in that state. Compare to `fp.Maybe`, which has no
+such value to fall back to and instead has to *interrogate* whatever is in
+`Value` to guess whether it counts as "there."
+
+## 8. FlatMap
+
+**Before:** `fp.Many.Map` (`fp/many.go`) flattens implicitly via `toSlice`,
+which inspects the *result*'s `reflect.Kind` — slice or array means
+"multiply," anything else means "one cell." It can't tell `func(string)
+string` from `func(string) []string` apart as *declared types*, and doesn't
+need to, because `interface{}` erased that distinction before `toSlice` ever
+ran.
+
+**After:** `fpgen.ManyMap[A, B any](m *Many[A], f func(A) B) *Many[B]` and
+`fpgen.FlatMap[A, B any](m *Many[A], f func(A) []B) *Many[B]`
+(`fpgen/many.go`) are two different functions, because `func(A) B` and
+`func(A) []B` are two different, fully distinct Go types — there is no
+single signature that accepts either the way `fp.Many.Map`'s `interface{}`
+parameter does. `TestFlatMap` (`fpgen/many_test.go`) and `ExampleFlatMap`
+(`fpgen/example_test.go`) rebuild slide 68's chain — `strings.ToUpper`
+(`func(string) string`, one cell, so `ManyMap`) then `strings.Fields`
+(`func(string) []string`, many cells, so `FlatMap`) — and it still prints
+`"HELLO", "THERE", "GOOD", "BYE"`.
+
+**Concept:** a distinction the old code could stay silent about (does this
+step expand its element into several?) becomes one the type system forces a
+caller to *state*, once, at the call site — traded for having to know and
+name which of the two shapes each step in a chain actually is.
+
+## 9. THE SECOND WALL — heterogeneous chains
+
+**Before:** `fp.Maybe.Do` and `fp.Many.Do` (`fp/maybe.go`, `fp/many.go`)
+take `fs ...interface{}`, a chain where every step can have a *different*
+type pair:
+
+```go
+w, err := Maybe{p}.Do(Person.Address, Address.City, City.Weather, Weather.Description)
+```
+
+`Person.Address` is `func(Person) *Address`; `Address.City` is
+`func(Address) *City`; `City.Weather` is `func(City) *Weather` — three
+distinct signatures, one variadic parameter.
+
+**The wall:** there is no generic signature for that, because Go's
+variadics are homogeneous by construction — `fs ...T` needs one `T` for
+every element.
+
+**Where this wall stands, and why that differs from the other two.** Walls
+1 and 3 are enforced at the **declaration**: you write the declaration, the
+compiler refuses it, and the pinned diagnostic sits right on it. This one is
+enforced at the **call site**. Every shape below *declares* perfectly
+legally:
+
+```go
+func Do[T any](v T, fs ...func(T) T) T           // legal; forces every step to keep the same type
+func Do[T, U any](v T, fs ...func(any) any) U    // legal; back to interface{} -- the whole point was to avoid it
+func Do[T, U any](v T, fs ...func(T) U) U        // legal; every step must be the SAME func(T) U, so a chain of length 1
+```
+
+That is exactly what makes this wall easy to miss, and worth stating
+separately: nothing stops you writing the signature. The second and third
+are not walls at all — they compile *and* accept calls, having given up type
+safety and generality respectively. The second gives up inference as well:
+`U` appears in no parameter, so nothing can infer it and the call has to
+name both type arguments — `Do[Person, string](p, steps...)` compiles,
+`Do(p, steps...)` gets `cannot infer U`. That is lesson 2's boundary again
+(`T` in the first signature is inferred from `v`; a type parameter only in
+the result never is). Only the first is a wall, and only when asked to run a
+chain whose type changes at every step:
+
+```go
+Do(p, Person.Address, Address.City, City.Weather, Weather.Description)
+// testdata/wall_variadic_chain.go:44:12: in call to Do, type func(Person) *Address
+// of Person.Address does not match inferred type func(Person) Person for func(T) T
+```
+
+`T` is asked to be `Person` and `*Address` at once, and there is no second
+type parameter for it to become. `TestWallVariadicChain` in
+`fpgen/wall_test.go` builds `fpgen/testdata/wall_variadic_chain.go` (path
+relative to `fpgen/`, where the test runs) and always asserts the call is
+rejected, pinning the position and both function types; on a go1.27 or later
+toolchain it pins the line above character for character. Under go1.21 the
+compiler words the same rejection without the `in call to Do,` clause —
+identical position, types and reason — so the test accepts either spelling.
+The other half is pinned without a test at all: a package-level `var _
+func(wallPerson, ...func(wallPerson) wallPerson) wallPerson =
+wallDo[wallPerson]` in `fpgen/wall_test.go` proves the bare `Do` declaration
+compiles, and every ordinary `go test` and `go vet` checks it — both
+type-check test files, which `go build` does not. So the
+declaration-versus-call-site distinction is itself under test, not just
+asserted in prose.
+
+**The honest alternatives, in `fpgen/chain.go`:**
+
+- **Nested calls** — `MaybeMap(MaybeMap(MaybeMap(m, step1), step2), step3)`
+  — correct, and unreadable past three steps.
+- **A fixed-arity family** — `fpgen.Chain2[A, B, C any]`,
+  `fpgen.Chain3[A, B, C, D any]`, `fpgen.Chain4[A, B, C, D, E any]`:
+  readable, but the library has to predict the longest chain anyone wants
+  and provide a `Chain` for it. Watch that prediction fail here. `Chain2` and
+  `Chain3` were written first, and `ExampleChain3` and
+  `ExampleChain3_pointerStep` (`fpgen/example_test.go`) show the mechanism at
+  a readable size — but neither reaches the talk's own chain, which is *four*
+  functions (`Person.Address`, `Address.City`, `City.Weather`,
+  `Weather.Description`, slide 63). Running that end to end cost a fourth
+  function argument's worth of boilerplate — `Chain4`, five type parameters
+  to `Chain3`'s four — and `ExampleChain4` runs it. The library example of
+  slides 72–74 is out of reach at *any* arity, which is a second and
+  independent limit: `Library.Books` is `func(Library) []Book` while
+  `Book.Pages` is `func(Book) []Page`, so step two takes an *element* of what
+  step one returned. Every `Chain` composes 1:1 — step N's result into step
+  N+1's argument — so no `Chain5`, and no `ChainN`, holds that chain; it
+  needs flattening between the steps, which is `FlatMap`'s job (lesson 8) and
+  `toSlice`'s inside `fp.Many.Map`. A second, parallel family of flattening
+  chains would have to sit on top of the arity ladder. There is no
+  arity at which the family is *finished*: every extra step is the same three
+  lines with one more type parameter, world without end. `fp.Maybe.Do` takes
+  any length because `reflect` never has to know the length in advance.
+- **Keep reflection** — `fp.Maybe.Do` itself, unchanged: arbitrary length,
+  back to run-time type errors instead of compile errors.
+
+This is where "Go's generics are not Haskell's" stops being an abstract
+warning and becomes a concrete, checked fact: monomorphic, homogeneous
+variadics are a real design choice with a real cost, paid exactly at the
+point `fp.Maybe.Do`'s heterogeneous chain lives — and paid at the call, not
+at the declaration.
+
+## 10. THE THIRD WALL — the Mapper interface still cannot be written
+
+**Before:** slide 47. `fp`'s three containers can't share a `Mapper`
+interface because the return type of `Map` can't be spelled:
+
+```go
+type Mapper interface {
+	Map(*Func) ???
+}
+```
+
+**After — still unspellable, but not for the reason lesson 5 might suggest:**
+with generics, the naive attempt is
+
+```go
+type Mapper[A any] interface {
+	Map[B any](f func(A) B) Mapper[B]
+}
+```
+
+It is tempting to reach for lesson 5's wall here — "methods can't have type
+parameters, so `Map` can't be a method inside this interface either." That
+reasoning is now **wrong**, and saying so is the point: lesson 5's wall is
+gated behind a language version, `go 1.27` lifted it, and a generic method
+on a *concrete* type compiles fine there —
+`TestWallMethodTypeParamsLiftedAtGo127` in `fpgen/wall_test.go` builds
+`wall_method_type_param.go` at `-gcflags=-lang=go1.27` and asserts it
+succeeds, the same file that `TestWallMethodTypeParams` asserts *fails* at
+`-lang=go1.21`. Reusing lesson 5's reason here would make lesson 10 rest on
+a rule that has already fallen three sections earlier.
+
+The real reason is narrower, and it holds at `go 1.27` with no version gate
+in sight: **a type parameter on a method declared *inside an interface* is a
+separate rule from a type parameter on a concrete type's method, and Go
+still rejects it.**
+
+```
+interface method must have no type parameters
+```
+
+`TestWallInterfaceMethodTypeParams` (`fpgen/wall_test.go`) copies
+`fpgen/testdata/wall_interface_method_type_param.go.txt` — a `.txt`, not a
+`.go`, because `go/parser` (what `gofmt` uses) treats a type-parameter list
+on an interface method as a syntax error rather than a type-check error,
+which would break this repository's `gofmt -l .` if the file were a plain
+`.go` — into a temporary `.go` file and builds it at `-gcflags=-lang=go1.27`
+— deliberately not `go1.21`, because `1.27` is exactly where the distinction
+between "generic method on a concrete type" (now legal) and "generic method
+inside an interface" (still not) becomes visible; at `1.21` both fail the
+same way, which would hide the point — and pins that diagnostic's text.
+
+Even granting a hypothetical language that allowed generic interface
+methods, a second, independent gap remains: Go has no way to abstract over
+"some container type constructor `F`" so that `Mapper[F, A]` could say
+`Map(func(A) B) F[B]` for whichever `F` — a *higher-kinded type parameter*, a
+type parameter that is itself generic. Go's type parameters range over
+types, never over generic type constructors. This half is unaffected by
+1.27 or any plausible future point release; it is a structural gap in the
+generics design, not a syntax restriction.
+
+So `fpgen.List`, `fpgen.Maybe`, and `fpgen.Many` share no interface, exactly
+as `fp.List`, `fp.Maybe`, and `fp.Many` don't — for a sturdier pair of
+reasons than lesson 5's wall alone would give. This is the closing lesson
+and it is not hedged: **the talk's central complaint about Go survives
+generics, and it survives on rules that don't depend on which Go release you
+happen to be running.**
+
+## 11. What reflection still buys, and what it costs
+
+**What `fp` gets that `fpgen` cannot, from the walls above:** arbitrary-arity
+dispatch (`fp.Maybe.Do`'s variadic chain, lesson 9), chains built at run time
+from data the program didn't know about at compile time (a config file
+naming which methods to call, say), and the automatic pointer dereference in
+`argValue` (`fp/func.go`).
+
+That last one is worth being precise about, because it is the clearest case
+of reflection doing real work. In `examples/weather`, `Person.Address` is
+`func(Person) *Address`, but `Address.City` has a *value* receiver, so
+`WeatherDo`'s chain hands a `*Address` to a step that wants an `Address`.
+`WeatherDo` names both steps — `Person.Address`, then `Address.City` — and
+nothing between them; `reflect.Value.Call` would panic on that mismatch, and
+`argValue` dereferences the pointer to prevent it. That is the whole
+adaptation, and no line of `fp`'s source shows it happening: `argValue`'s own
+doc comment records that this is what makes slides 61 and 63 work as
+printed. The cost is exactly as concrete. A nil pointer has nothing to
+dereference and no honest value to substitute, and `Call` has no error
+result, so `argValue` panics — which is precisely why `Maybe.Map` must
+short-circuit a typed nil pointer at *both* ends (`isNilPtr`, `fp/maybe.go`,
+lesson 7). A `Many` chain, which has no such guard, reaches the panic.
+
+`fpgen` has no equivalent machinery, and cannot: a step returning `*address`
+feeding a step taking `address` is a compile error, so the conversion must
+be written out, in the open. `ExampleChain3_pointerStep`
+(`fpgen/example_test.go`) is that same chain with the pointer shape
+preserved — `func(p person) *address`, then an explicit
+`func(a *address) address { return *a }`, then the step taking the value —
+so the adapter `fp` performs invisibly is a line a reader can see. The
+trade is not that one package does more work than the other; it is that
+`fp`'s adaptation is silent and can panic at run time, while `fpgen`'s is
+mandatory, visible, and checked before the program runs.
+
+**What it costs, measured, not asserted:** `fpgen/bench_test.go` maps
+`strings.ToUpper` over a 1000-element list both ways — `fp.List.Map` with a
+`Must(NewFunc(...))`-built `*Func`, and `fpgen.ListMap` — matching `sum/`'s
+own `benchSize = 1000` (`sum/sum_test.go`) so this repo compares reflection
+against generics on the same shape of work it already compares recursion
+against iteration on.
+
+| Benchmark | ns/op | B/op | allocs/op |
+| --- | ---: | ---: | ---: |
+| `BenchmarkFPListMap` (`fp`, reflection) | 118,483 | 72,000 | 4,000 |
+| `BenchmarkFPGenListMap` (`fpgen`, generics) | 25,219 | 32,000 | 2,000 |
+
+Median of five runs, `go test ./fpgen -bench . -benchmem -count=5`, on an
+Apple M4 Pro, Go 1.27 (see `docs/investigations/generics-vs-reflection.md`
+for the full numbers and reproduction command, following the format
+`docs/investigations/benchmark-input-size.md` set). `fpgen` is roughly 4.7×
+faster and does half the allocations per element. Both pay two: the new
+`*List` cell (24 B) and the string `strings.ToUpper` returns (8 B).
+
+`fp` pays two more on top, and — measured rather than assumed — neither is
+interface boxing. `fp.List.Head` and `Func.Call`'s parameter are both
+already declared `interface{}` (`fp/list.go`, `fp/func.go`), so passing
+`l.Head` in converts nothing, and `res[0].Interface()` on the way out
+repacks the existing pointer rather than copying. The two extra allocations
+are `reflect.Value.Call`'s own result machinery: the `make([]Value, nout)`
+slice it wraps return values in (24 B), and the `unsafe_New` storage it
+allocates for a value returned in registers (16 B). That is 24 + 8 + 24 + 16
+= 72 B across four allocations per element, against `fpgen`'s 24 + 8 = 32 B
+across two — exactly the table's 72,000 B/4,000 allocs and 32,000 B/2,000
+allocs over 1000 elements. `docs/investigations/generics-vs-reflection.md`
+records the `pprof` breakdown those four sites come from.
+
+Against that speed and allocation win, two costs. The first is that nothing
+on the paths `fp` covers and `fpgen` cannot (lessons 9–10) is checked before
+the program runs — a chain is only as safe as whatever checks it at run
+time. `Maybe.Do` and `Many.Do` do check, and before applying anything:
+`newChain` (`fp/func.go`) builds every step's `Func` up front and returns
+`can't chain: step 0 returns …, but step 1 takes …` rather than panicking,
+which is an addition beyond slide 62 (see `NOTES.md`). The second is what
+happens where that guard is absent, and there the failure is a panic rather
+than an error: `Must` (`fp/func.go`) converts a `NewFunc` error into one by
+design, a hand-built `l.Map(Must(NewFunc(f)))` chain has no joint check at
+all and a mismatch reaches `reflect.Value.Call` unguarded, and `argValue`
+panics on the nil pointer it cannot dereference — the case above, which a
+`Many` chain can reach and a `Maybe` chain cannot. Both are real, and
+neither package is "obviously better" in the abstract — which cost matters
+more depends entirely on whether the chain you need to express is one
+lessons 9 and 10 say generics can reach.
+
+---
+
+## Status
+
+All twelve lessons above are implemented, tested (`go test ./fpgen/...`),
+and pass `go vet` / `gofmt -l`. The benchmark in lesson 11 has been run and
+its numbers recorded both here and in
+`docs/investigations/generics-vs-reflection.md`.

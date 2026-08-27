@@ -1,1 +1,9 @@
 .DS_Store
+
+# go test byproducts: the compiled test binary and profile output that
+# `go test -bench -memprofile ...` (see docs/investigations/) leaves in the
+# working directory.
+*.test
+*.prof
+*.mprof
+*.pprof

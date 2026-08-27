@@ -21,11 +21,12 @@ Where the deck and the derived documents disagree, the deck wins, but read `docs
 **Outputs**, written as the work proceeds:
 
 - **`NOTES.md`** — the deviation log. Every departure from the literal slide text, and why. One entry per decision.
+- **`docs/teaching-generics.md`** — the generics curriculum: twelve ordered lessons, each anchored to a before-in-`fp` / after-in-`fpgen` pair, ending in the three walls generics does not remove. It describes these two packages, so it is edited to match them.
 - **`docs/investigations/`** — long-form findings that are too big for a `NOTES.md` bullet: a question that came up, how it was checked, and what the answer turned out to be. `tail-recursion.md` is the first (does Go eliminate tail calls? — no, and here is the proof).
 
 The rule of thumb: if a `NOTES.md` entry needs more than a paragraph, or if someone would reasonably want to re-run your evidence, it belongs in `docs/investigations/` with a one-line summary and a link left behind in `NOTES.md`.
 
-**Status:** complete. `sum/`, `fp/` and both examples are implemented and tested.
+**Status:** complete. `sum/`, `fp/`, `fpgen/` and both examples are implemented and tested.
 
 ### Reading the deck
 
@@ -62,8 +63,8 @@ Slides 77–78 are appendix material but hold the **real** implementations — u
 
 ## Hard constraints (these are the point of the project, not preferences)
 
-- **No generics, ever.** The talk exists because Go 1.5 had none. Use `reflect` and `interface{}`. Do not write type parameters. Do not spell `interface{}` as `any` — the 2015 spelling is deliberate.
-- **Standard library only in non-test code.** `fp/`, `sum/` and the examples' non-test code must not import anything outside the standard library. Tests may use `github.com/stretchr/testify` (`require` for preconditions that must abort, `assert` for independent checks); it is the only third-party dependency in `go.mod`, and it is test-only.
+- **No generics anywhere in this repository, with `fpgen/` as the single deliberate exception.** The talk exists because Go 1.5 had none. Use `reflect` and `interface{}`. Do not write type parameters. Do not spell `interface{}` as `any` — the 2015 spelling is deliberate. `fpgen/` is exempt by design, and only there; `docs/teaching-generics.md` is why.
+- **Standard library only in non-test code.** `fp/`, `fpgen/`, `sum/` and the examples' non-test code must not import anything outside the standard library. Tests may use `github.com/stretchr/testify` (`require` for preconditions that must abort, `assert` for independent checks); it is the only third-party dependency in `go.mod`, and it is test-only.
 - Module path is `github.com/campoy/functional-go`. Target Go 1.5 *semantics*, but declare a modern `go` directive so it builds on current toolchains.
 - **Do not rename anything.** The API surface (`Func`, `NewFunc`, `Must`, `Compose`, `List`, `Maybe`, `Many`, and the `Map`/`Do`/`Each` methods) must match the slides exactly, even where a modern name would read better.
 - Improvements you're tempted to make belong in `NOTES.md`, not in the code.
@@ -105,6 +106,7 @@ Slides 24–29 are the setup: with generics you'd write `Map(f func(a α) β, vs
 - **`Func.Call` dereferences a pointer argument when the wrapped function wants a value** (`argValue` in `fp/func.go`). The deck needs this and never mentions it: slide 61 feeds a `*Address` from `Person.Address` into `Address.City`, which has a value receiver, and `reflect.Value.Call` would panic. Do not remove it — the whole weather example depends on it. A **nil** pointer there panics rather than substituting a zero value; `Maybe` short-circuits before reaching it, `Many` does not. `Compose` deliberately keeps slide 77's stricter `g.out != f.in` identity check.
 - **`Many.Map` walks each expansion backwards.** Slide 66's printed loop prepends while iterating forwards, which reverses every group and does not reproduce slide 68's printed output. The output is ground truth, the loop is not; `fp/example_test.go` pins the slide 68 order.
 - `sum/` is unrelated to `fp/` — it is the opening act on recursion vs. tail recursion, ending in `SumTRG`'s `goto`-faked TCO. The deck never states the input size; ~1000 elements is consistent with the reported 462 ns/op for `SumI`, but that is an inference, so pick a size, record it, and report measured numbers next to the historical ones.
+- `fpgen/` is `fp/` rebuilt on type parameters, the one place generics are allowed; `docs/teaching-generics.md` teaches Go generics through the difference between the two packages, and `NOTES.md` records its departures from a literal transliteration.
 - `examples/weather` and `examples/library` are the payoff. Both rely on **method expressions** (`Person.Address`, `Library.Books` — slide 60, which the deck mislabels "Method values") to feed `Do`; that's why receivers are values and returns are pointers/slices. Each example shows the imperative version and the functional version side by side, with a test asserting the two agree.
 
 ## Working method
