@@ -7,9 +7,26 @@ lesson is the *difference* between them. Every entry below points at a
 specific before-in-`fp` / after-in-`fpgen` pair, not a generics feature in
 the abstract.
 
-Two of the talk's shapes still cannot be written, even with generics. They
-are lessons 5 and 9-10 below, and they are not softened: the honest limits of
-Go's generics are as much the point of this document as the features are.
+Some of the talk's shapes still cannot be written, even with generics.
+They are the three walls — lessons 5, 9 and 10 below — and they are not
+softened: the honest limits of Go's generics are as much the point of this
+document as the features are.
+
+The three do not all stand in the same place, and the difference matters
+enough to say up front:
+
+| Wall | Lesson | Enforced at | What the compiler rejects |
+| --- | --- | --- | --- |
+| Methods cannot have type parameters | 5 | **Declaration** | the method declaration itself |
+| Heterogeneous variadic chains | 9 | **Call site** | a call; every candidate signature *declares* fine |
+| No higher-kinded types | 10 | **Declaration** | the interface declaration itself |
+
+Walls 1 and 3 announce themselves: write the declaration, the compiler
+refuses it. Wall 2 lets you write the signature, compiles it happily, and
+only objects when you feed it a chain whose type changes at every step —
+which is why it is the one people expect generics to have solved. Each of
+the three is pinned by a real `go build` diagnostic in `fpgen/wall_test.go`,
+asserted against actual compiler output rather than described.
 
 `fp` is unchanged by this work — see `NOTES.md`'s "fpgen" section for
 `fpgen`'s own departures from a literal transliteration.
@@ -317,13 +334,40 @@ distinct signatures, one variadic parameter.
 
 **The wall:** there is no generic signature for that, because Go's
 variadics are homogeneous by construction — `fs ...T` needs one `T` for
-every element. None of the tempting shapes work:
+every element.
+
+**Where this wall stands, and why that differs from the other two.** Walls
+1 and 3 are enforced at the **declaration**: you write the declaration, the
+compiler refuses it, and the pinned diagnostic sits right on it. This one is
+enforced at the **call site**. Every shape below *declares* perfectly
+legally:
 
 ```go
-func Do[T any](v T, fs ...func(T) T) T           // forces every step to keep the same type
-func Do[T, U any](v T, fs ...func(any) any) U    // back to interface{} -- the whole point was to avoid it
-func Do[T, U any](v T, fs ...func(T) U) U        // every step must be the SAME func(T) U -- only a chain of length 1
+func Do[T any](v T, fs ...func(T) T) T           // legal; forces every step to keep the same type
+func Do[T, U any](v T, fs ...func(any) any) U    // legal; back to interface{} -- the whole point was to avoid it
+func Do[T, U any](v T, fs ...func(T) U) U        // legal; every step must be the SAME func(T) U, so a chain of length 1
 ```
+
+That is exactly what makes this wall easy to miss, and worth stating
+separately: nothing stops you writing the signature. The second and third
+are not walls at all — they compile *and* accept calls, having given up type
+safety and generality respectively. Only the first is a wall, and only when
+asked to run a chain whose type changes at every step:
+
+```go
+Do(p, Person.Address, Address.City, City.Weather, Weather.Description)
+// testdata/wall_variadic_chain.go:44:12: in call to Do, type func(Person) *Address
+// of Person.Address does not match inferred type func(Person) Person for func(T) T
+```
+
+`T` is asked to be `Person` and `*Address` at once, and there is no second
+type parameter for it to become. `TestWallVariadicChain` in
+`fpgen/wall_test.go` builds `fpgen/testdata/wall_variadic_chain.go` (path
+relative to `fpgen/`, where the test runs) and always asserts the call is
+rejected; on a go1.27 or later toolchain it pins the line above character
+for character. A companion test builds the bare `Do` declaration on its own
+and asserts it *succeeds* — the declaration-versus-call-site distinction is
+itself under test, not just asserted in prose.
 
 **The honest alternatives, in `fpgen/chain.go`:**
 
@@ -339,9 +383,10 @@ func Do[T, U any](v T, fs ...func(T) U) U        // every step must be the SAME 
   back to run-time type errors instead of compile errors.
 
 This is where "Go's generics are not Haskell's" stops being an abstract
-warning and becomes a concrete, checkable fact: monomorphic, homogeneous
+warning and becomes a concrete, checked fact: monomorphic, homogeneous
 variadics are a real design choice with a real cost, paid exactly at the
-point `fp.Maybe.Do`'s heterogeneous chain lives.
+point `fp.Maybe.Do`'s heterogeneous chain lives — and paid at the call, not
+at the declaration.
 
 ## 10. THE THIRD WALL — no higher-kinded types
 

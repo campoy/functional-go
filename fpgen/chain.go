@@ -14,12 +14,34 @@ package fpgen
 // signature, because Go's variadics are homogeneous by construction --
 // `fs ...T` needs a single T for every element, and generics gives you more
 // ways to parameterise T, not a way to make one parameter list stand for a
-// sequence of different types. Concretely, none of the shapes that look like
-// they should work do:
+// sequence of different types.
 //
-//	func Do[T any](v T, fs ...func(T) T) T                     // forces every step to keep the same type
-//	func Do[T, U any](v T, fs ...func(any) any) U               // back to interface{}; the whole point was to avoid it
-//	func Do[T, U any](v T, fs ...func(T) U) U                   // every step must be func(T) U -- the SAME T and U, so it only accepts a chain of length 1
+// This wall stands in a different place from the other two, and where it
+// stands is part of the lesson. Lesson 5's wall and lesson 10's are
+// rejections of a DECLARATION: write the declaration, the compiler refuses
+// it, done. Every shape below DECLARES fine. The wall shows up only at the
+// CALL SITE, when one of these legal signatures is handed a chain whose type
+// changes at every step:
+//
+//	func Do[T any](v T, fs ...func(T) T) T                     // legal; forces every step to keep the same type
+//	func Do[T, U any](v T, fs ...func(any) any) U               // legal; back to interface{}, the whole point was to avoid it
+//	func Do[T, U any](v T, fs ...func(T) U) U                   // legal; every step must be the SAME func(T) U, so a chain of length 1
+//
+// Only the first is a wall rather than a compromise -- the other two compile
+// AND accept a call, they just give up type safety and generality
+// respectively. Feed the weather chain to the first and the compiler says
+// so, at the call:
+//
+//	Do(p, Person.Address, Address.City, City.Weather, Weather.Description)
+//	// testdata/wall_variadic_chain.go:44:12: in call to Do, type func(Person) *Address of Person.Address does not match inferred type func(Person) Person for func(T) T
+//
+// (the real diagnostic, as printed from fpgen/ where the test runs -- see
+// fpgen/testdata/wall_variadic_chain.go and TestWallVariadicChain in
+// fpgen/wall_test.go, which builds that file, always asserts the call is
+// rejected, and pins the line above character for character on a go1.27 or
+// later toolchain. A companion test builds the bare Do declaration to prove
+// it compiles, since "the declaration is fine, the call is not" is the
+// whole distinction.)
 //
 // The honest alternatives are: nested calls (MaybeMap(MaybeMap(MaybeMap(m,
 // step1), step2), step3) -- correct, and unreadable past three steps), a

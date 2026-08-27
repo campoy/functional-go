@@ -148,6 +148,54 @@ func TestWallInterfaceMethodTypeParams(t *testing.T) {
 // pin is guarded and the unconditional assertion below is the looser one.
 const wantComposeDiagnostic = "testdata/compose_mismatch.go:18:27: in call to Compose, type func(n int) int of func(n int) int {…} does not match inferred type func(int) string for func(A) B"
 
+// wantVariadicChainDiagnostic is the exact line the compiler prints for
+// testdata/wall_variadic_chain.go. Quoted verbatim by fpgen/chain.go and by
+// lesson 9 of docs/teaching-generics.md.
+const wantVariadicChainDiagnostic = "testdata/wall_variadic_chain.go:44:12: in call to Do, type func(Person) *Address of Person.Address does not match inferred type func(Person) Person for func(T) T"
+
+// TestWallVariadicChain pins lesson 9's wall, THE SECOND WALL -- and pins it
+// at the place it actually stands. Lessons 5 and 10 are compiler rejections
+// of a DECLARATION; this one is not. `func Do[T any](v T, fs ...func(T) T) T`
+// declares perfectly legally, which is exactly why the wall is easy to miss:
+// it appears only at the CALL SITE, when that legal signature is handed
+// slide 61's chain, whose element type changes at every step. Nothing about
+// the file fails to parse or fails to declare; the call is what the compiler
+// rejects.
+func TestWallVariadicChain(t *testing.T) {
+	cmd := exec.Command("go", "build", "-gcflags=-lang=go1.21", "testdata/wall_variadic_chain.go")
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "wall_variadic_chain.go must NOT compile: a homogeneous variadic can't take a heterogeneous chain")
+
+	// Always true, on any toolchain: the rejection names the call to Do and
+	// the step whose type breaks the single-T inference.
+	assert.Contains(t, string(out), "in call to Do")
+	assert.Contains(t, string(out), "does not match inferred type")
+
+	// Type inference wording is toolchain-dependent and -lang does not
+	// stabilise it, so the verbatim pin is guarded the same way lesson 3's
+	// and lesson 5's are.
+	if goMinorVersion(t) >= 27 {
+		assert.Contains(t, string(out), wantVariadicChainDiagnostic,
+			"the diagnostic quoted verbatim in fpgen/chain.go and docs/teaching-generics.md must match what the compiler actually prints")
+	}
+}
+
+// TestWallVariadicChainSignatureItselfCompiles is the other half of lesson
+// 9's point, and the reason the wall needed a call site to show up at all:
+// the same generic signature the file above declares is legal Go. Chain2
+// and Chain3 below it are legal too. What cannot be written is a single
+// variadic signature that accepts a chain of changing types.
+func TestWallVariadicChainSignatureItselfCompiles(t *testing.T) {
+	dir := t.TempDir()
+	src := "package main\n\nfunc Do[T any](v T, fs ...func(T) T) T {\n\tfor _, f := range fs {\n\t\tv = f(v)\n\t}\n\treturn v\n}\n\nfunc main() { _ = Do(1, func(n int) int { return n + 1 }) }\n"
+	tmpGo := filepath.Join(dir, "variadic_chain_decl.go")
+	require.NoError(t, os.WriteFile(tmpGo, []byte(src), 0o644))
+
+	cmd := exec.Command("go", "build", "-o", filepath.Join(dir, "out"), "-gcflags=-lang=go1.21", tmpGo)
+	out, err := cmd.CombinedOutput()
+	assert.NoError(t, err, "the homogeneous variadic signature must compile on its own; the wall is at the call site, not the declaration: %s", out)
+}
+
 // TestWallComposeMismatch pins the real diagnostic from lesson 3: a
 // Compose (fpgen/func.go) call whose two functions do not line up fails to
 // compile, with the compiler doing the type check fp.Compose does at run
