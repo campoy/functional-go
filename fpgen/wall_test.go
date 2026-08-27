@@ -160,12 +160,12 @@ const wantVariadicChainDiagnostic = "testdata/wall_variadic_chain.go:44:12: in c
 const wantVariadicChainDiagnosticPre127 = "testdata/wall_variadic_chain.go:44:12: type func(Person) *Address of Person.Address does not match inferred type func(Person) Person for func(T) T"
 
 // variadicChainDiagnosticRE matches whichever of the two spellings above the
-// running toolchain produces, and nothing else -- the position, both
-// function types and the inference reason are all still pinned.
+// running toolchain produces, and nothing else. It is built from the two
+// constants rather than restating them, so each remains pinned character for
+// character and there is only one copy of each to keep true.
 var variadicChainDiagnosticRE = regexp.MustCompile(
-	`testdata/wall_variadic_chain\.go:44:12: (in call to Do, )?` +
-		`type func\(Person\) \*Address of Person\.Address ` +
-		`does not match inferred type func\(Person\) Person for func\(T\) T`)
+	regexp.QuoteMeta(wantVariadicChainDiagnostic) + "|" +
+		regexp.QuoteMeta(wantVariadicChainDiagnosticPre127))
 
 // TestWallVariadicChain pins lesson 9's wall, THE SECOND WALL -- and pins it
 // at the place it actually stands. Lessons 5 and 10 are compiler rejections
