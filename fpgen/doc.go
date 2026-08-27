@@ -12,14 +12,19 @@
 // generics tutorial that happens to use lists -- every concept it introduces
 // is motivated by a specific thing fp had to do the hard way, with the fp
 // code and the fpgen code shown side by side. Three of the talk's shapes
-// still do not fit, and each is pinned to real compiler output in the
-// curriculum rather than asserted:
+// still do not fit. Wherever a compiler rejection exists, the curriculum
+// pins it to a real go build diagnostic in wall_test.go rather than
+// describing it; the higher-kinded half of the third wall is established by
+// argument instead, and can only be, since a shape the language cannot
+// express produces no diagnostic to capture:
 //
-//   - Map, ListMap, MaybeMap and ManyMap are free functions because a method
-//     cannot take type parameters of its own at the go 1.21 this module
-//     declares. Go 1.27 lifts that for a concrete type's methods, so this
-//     wall is real for this repository rather than for the language
-//     (lesson 5).
+//   - ListMap, MaybeMap and ManyMap are free functions rather than the one
+//     Map method name fp gives all three, because a method cannot take type
+//     parameters of its own at the go 1.21 this module declares -- and Map
+//     itself is already the slice function that replaces fp.Func, fp.NewFunc
+//     and fp.Must (lesson 1), not a demoted method. Go 1.27 lifts the method
+//     restriction for a concrete type's methods, so this wall is real for
+//     this repository rather than for the language (lesson 5).
 //   - fp.Maybe.Do's heterogeneous variadic chain has no generic signature,
 //     because Go's variadics are homogeneous. Chain2, Chain3 and Chain4 in
 //     chain.go are the honest fixed-arity substitute, and they do not
