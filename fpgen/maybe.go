@@ -55,10 +55,14 @@ func Some[T any](v T) Maybe[T] {
 
 // None returns a Maybe holding nothing, of type T.
 //
-// Go cannot infer T from zero arguments, so a call site that cannot infer it
-// from context needs an explicit type argument: None[int](). Lesson 2
-// covers exactly this boundary -- inference works from arguments and
-// results, never from thin air.
+// None takes no arguments, so there is nothing for inference to look at and
+// the type argument has to be written out: None[int](). Assigning the result
+// does not supply it either -- var m Maybe[int] = None() is "cannot infer T",
+// because a call's type arguments never come from what the caller does with
+// the result. (Assigning None itself to a func() Maybe[int] variable is the
+// assignment case Go 1.21's inference does cover, and compiles.) Lesson 2
+// covers exactly this boundary: inference works from the types of arguments,
+// never from a result type alone.
 func None[T any]() Maybe[T] {
 	return Maybe[T]{}
 }
