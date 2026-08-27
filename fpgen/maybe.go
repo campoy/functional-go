@@ -43,6 +43,23 @@ package fpgen
 // var zero T is a real value of T (0, "", a nil slice, a zero-valued
 // struct -- whatever T's zero value is), never inspected, sitting in the
 // value field precisely when ok is false and nobody is allowed to look at it.
+//
+// Why ok bool and not a pointer (value *T, say)? The heap-allocation
+// argument -- a *T needs one whenever it escapes, ok never does -- is real
+// but secondary. The load-bearing reason is that *T used as "optional T"
+// collapses two distinct states onto one value: nil means both "absent" and,
+// whenever T is itself a pointer, "present, and the value is a nil pointer".
+// Telling them apart needs a second level of pointer -- Maybe[*Address]
+// would need **Address to keep "no address" apart from "an address, and it's
+// a nil *Address" -- the exact pointer-of-pointer complication a bare *T was
+// supposed to avoid. ok bool sidesteps the question instead of answering it:
+// presence and value live in separate fields, so there is no nil for the two
+// states to collide on. That collapse is not a hypothetical worry about some
+// other design; it is fp.Maybe's actual bug, arrived at here from the type
+// system rather than from a regression report -- see lesson 7, above, and
+// functional-go-maybe-nil. ExampleMaybeMap_pointer (fpgen/example_test.go)
+// holds a present-but-nil pointer end to end to make the distinction
+// concrete.
 type Maybe[T any] struct {
 	value T
 	ok    bool
