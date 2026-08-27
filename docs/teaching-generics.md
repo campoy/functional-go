@@ -412,10 +412,11 @@ asserted in prose.
   a readable size — but neither reaches the talk's own chain, which is *four*
   functions (`Person.Address`, `Address.City`, `City.Weather`,
   `Weather.Description`, slide 63). Running that end to end cost a fourth
-  type parameter's worth of boilerplate, `Chain4`, and `ExampleChain4` runs
-  it. The library example of slides 72–74 is five functions
-  (`Library.Books`, `Book.Pages`, `Page.Lines`, `Line.Text`,
-  `strings.Fields`) and needs a `Chain5` nobody has written. There is no
+  function argument's worth of boilerplate — `Chain4`, five type parameters
+  to `Chain3`'s four — and `ExampleChain4` runs it. The library example of
+  slides 72–74 is five functions (`Library.Books`, `Book.Pages`,
+  `Page.Lines`, `Line.Text`, `strings.Fields`) and needs a `Chain5` nobody
+  has written. There is no
   arity at which the family is *finished*: every extra step is the same three
   lines with one more type parameter, world without end. `fp.Maybe.Do` takes
   any length because `reflect` never has to know the length in advance.

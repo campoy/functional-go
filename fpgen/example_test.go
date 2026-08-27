@@ -99,11 +99,18 @@ func ExampleChain4() {
 	// fpgen/chain.go, and a five-step chain would need another -- that is
 	// lesson 9's wall, met at the deck's own length.
 	//
-	// Only the first step can be a bare method expression: every later one
-	// receives the previous step's pointer and its method has a value
-	// receiver, so the dereference is written out, three times, where a
-	// reader sees it. fp.Maybe.Do does the same three conversions invisibly
-	// inside argValue (fp/func.go).
+	// Every step after the first is handed the previous step's pointer, and
+	// every method here has a value receiver, so the plain method expression
+	// does not fit: chainAddress.City is func(chainAddress) *chainCity, and
+	// Chain4's second argument wants func(*chainAddress) *chainCity. Go has a
+	// method expression that does fit -- (*chainAddress).City, since a pointer
+	// type's method set includes its value-receiver methods -- and the
+	// closures below are the other way of writing that same adaptation. What
+	// the caller cannot do is leave it out: one spelling or the other has to
+	// appear here, at the call site. fp.Maybe.Do names neither, because
+	// argValue (fp/func.go) makes the same three conversions at run time,
+	// invisibly -- and, like both spellings above, panics rather than
+	// substituting a value when the pointer is nil.
 	p := chainPerson{addr: &chainAddress{city: &chainCity{weather: &chainWeather{desc: "cloudy"}}}}
 
 	got := fpgen.Chain4(p,

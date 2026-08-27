@@ -63,8 +63,9 @@ package fpgen
 // out is the lesson. Chain2 and Chain3 came first, and neither reaches the
 // talk's own chain: slide 63 threads Person.Address, Address.City,
 // City.Weather and Weather.Description, four functions, so running it end
-// to end cost a fourth type parameter's worth of boilerplate -- Chain4,
-// below, exercised by ExampleChain4 in fpgen/example_test.go. The library
+// to end cost a fourth function argument's worth of boilerplate -- Chain4,
+// below, five type parameters to Chain3's four, exercised by ExampleChain4
+// in fpgen/example_test.go. The library
 // example of slides 72-74 is longer still (Library.Books, Book.Pages,
 // Page.Lines, Line.Text, strings.Fields: five functions), and needs a Chain5
 // nobody has written. There is no arity at which this family is finished.
