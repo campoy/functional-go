@@ -64,8 +64,8 @@ Slides 77–78 are appendix material but hold the **real** implementations — u
 ## Hard constraints (these are the point of the project, not preferences)
 
 - **No generics anywhere in this repository, with `fpgen/` as the single deliberate exception.** The talk exists because Go 1.5 had none. Use `reflect` and `interface{}`. Do not write type parameters. Do not spell `interface{}` as `any` — the 2015 spelling is deliberate. `fpgen/` is exempt by design, and only there; `docs/teaching-generics.md` is why.
-- **Standard library only in non-test code.** `fp/`, `fpgen/`, `sum/` and the examples' non-test code must not import anything outside the standard library. Tests may use `github.com/stretchr/testify` (`require` for preconditions that must abort, `assert` for independent checks); it is the only third-party dependency in `go.mod`, and it is test-only.
-- Module path is `github.com/campoy/functional-go`. Target Go 1.5 *semantics*, but declare a modern `go` directive so it builds on current toolchains.
+- **Standard library only in non-test code.** `fp/`, `fpgen/`, `sum/` and the examples' non-test code must not import anything outside the standard library. Tests may use `github.com/stretchr/testify` (`require` for preconditions that must abort, `assert` for independent checks); it is the only third-party dependency in either module's `go.mod`, and it is test-only.
+- Module path is `github.com/campoy/functional-go`. Target Go 1.5 *semantics*, but declare a modern `go` directive so it builds on current toolchains. **`fpgen/` is a separate module** (`fpgen/go.mod`, path `github.com/campoy/functional-go/fpgen`), floored at a later `go` version than the root module — see "Two modules" in `docs/teaching-generics.md` for why, and note that a nested module is invisible to the root's `go build ./...` / `go test ./...`: verifying `fpgen` needs its own commands, run from `fpgen/`.
 - **Do not rename anything.** The API surface (`Func`, `NewFunc`, `Must`, `Compose`, `List`, `Maybe`, `Many`, and the `Map`/`Do`/`Each` methods) must match the slides exactly, even where a modern name would read better.
 - Improvements you're tempted to make belong in `NOTES.md`, not in the code.
 
@@ -87,9 +87,12 @@ gofmt -l .                           # must print nothing
 go vet ./...
 go run ./examples/weather
 go run ./examples/library
+
+# fpgen is a separate module (fpgen/go.mod); run its own commands from fpgen/
+cd fpgen && go build ./... && go test ./... && gofmt -l . && go vet ./...
 ```
 
-`gofmt -l .` (empty output), `go vet ./...`, and `go test ./...` all passing is the definition of done for any change.
+`gofmt -l .` (empty output), `go vet ./...`, and `go test ./...` all passing is the definition of done for any change — run once at the repo root (covers `fp`, `sum`, the examples) and once from `fpgen/` (covers `fpgen`), since the root's `./...` does not see the nested module.
 
 ## Architecture
 
