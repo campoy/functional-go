@@ -1,7 +1,7 @@
 package fpgen
 
-// Chain2 and Chain3 answer lesson 9, THE SECOND WALL, honestly rather than
-// solving it.
+// Chain2, Chain3 and Chain4 answer lesson 9, THE SECOND WALL, honestly
+// rather than solving it.
 //
 // fp.Maybe.Do and fp.Many.Do (fp/maybe.go, fp/many.go) take a variadic chain
 // where every step can have a different type pair:
@@ -29,8 +29,13 @@ package fpgen
 //
 // Only the first is a wall rather than a compromise -- the other two compile
 // AND accept a call, they just give up type safety and generality
-// respectively. Feed the weather chain to the first and the compiler says
-// so, at the call:
+// respectively. The second gives up inference too: U appears in no
+// parameter, so nothing can infer it, and every call has to write both type
+// arguments out -- Do[Person, string](p, steps...) -- or the compiler
+// answers "cannot infer U". That is lesson 2's boundary, hit head on: the
+// first signature's T is inferred from v, the second's U can only be
+// supplied by hand. Feed the weather chain to the first and the compiler
+// says so, at the call:
 //
 //	Do(p, Person.Address, Address.City, City.Weather, Weather.Description)
 //	// testdata/wall_variadic_chain.go:44:12: in call to Do, type func(Person) *Address of Person.Address does not match inferred type func(Person) Person for func(T) T
@@ -49,14 +54,24 @@ package fpgen
 //
 // The honest alternatives are: nested calls (MaybeMap(MaybeMap(MaybeMap(m,
 // step1), step2), step3) -- correct, and unreadable past three steps), a
-// fixed-arity family like Chain2/Chain3 below (readable, but the library
-// has to predict the longest chain anyone will want and provide a Chain for
-// it), or keeping reflect, i.e. fp.Maybe.Do itself, unchanged (arbitrary
-// length, back to run-time type errors). This package takes the middle
-// option for exactly the lengths the deck's own examples need -- the weather
-// chain is four steps long counting the starting value, i.e. three function
-// arguments -- and states plainly that it does not generalise: a fifth
-// step needs a Chain4 nobody has written yet.
+// fixed-arity family like Chain2, Chain3 and Chain4 below (readable, but
+// the library has to predict the longest chain anyone will want and provide
+// a Chain for it), or keeping reflect, i.e. fp.Maybe.Do itself, unchanged
+// (arbitrary length, back to run-time type errors).
+//
+// This package takes the middle option, and where the middle option runs
+// out is the lesson. Chain2 and Chain3 came first, and neither reaches the
+// talk's own chain: slide 63 threads Person.Address, Address.City,
+// City.Weather and Weather.Description, four functions, so running it end
+// to end cost a fourth type parameter's worth of boilerplate -- Chain4,
+// below, exercised by ExampleChain4 in fpgen/example_test.go. The library
+// example of slides 72-74 is longer still (Library.Books, Book.Pages,
+// Page.Lines, Line.Text, strings.Fields: five functions), and needs a Chain5
+// nobody has written. There is no arity at which this family is finished.
+// Every additional step is the same three lines with one more type
+// parameter and one more argument, world without end, which is exactly why
+// a fixed-arity family is a wall rather than a solution: fp.Maybe.Do accepts
+// any length because reflect never has to know the length in advance.
 //
 // Chain2 threads v through f then g: g(f(v)).
 func Chain2[A, B, C any](v A, f func(A) B, g func(B) C) C {
@@ -66,4 +81,12 @@ func Chain2[A, B, C any](v A, f func(A) B, g func(B) C) C {
 // Chain3 threads v through f, g, then h: h(g(f(v))).
 func Chain3[A, B, C, D any](v A, f func(A) B, g func(B) C, h func(C) D) D {
 	return h(g(f(v)))
+}
+
+// Chain4 threads v through f, g, h, then i: i(h(g(f(v)))).
+//
+// This is the arity the deck's weather chain needs, and adding it is the
+// demonstration: the family grows one function per chain length, forever.
+func Chain4[A, B, C, D, E any](v A, f func(A) B, g func(B) C, h func(C) D, i func(D) E) E {
+	return i(h(g(f(v))))
 }

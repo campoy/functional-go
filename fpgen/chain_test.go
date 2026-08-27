@@ -21,3 +21,13 @@ func TestChain3(t *testing.T) {
 	)
 	assert.True(t, got)
 }
+
+func TestChain4(t *testing.T) {
+	got := fpgen.Chain4(12345,
+		strconv.Itoa,
+		func(s string) int { return len(s) },
+		func(n int) bool { return n%2 == 1 },
+		strconv.FormatBool,
+	)
+	assert.Equal(t, "true", got)
+}

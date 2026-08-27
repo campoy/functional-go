@@ -175,8 +175,10 @@ transliteration of `fp`, in this file's usual style.
   signature that accepts either. See lesson 8.
 - **No `Do`.** `fp.Maybe.Do`/`fp.Many.Do`'s heterogeneous variadic chain has
   no generic signature — Go's variadics are homogeneous. `fpgen/chain.go`
-  offers `Chain2`/`Chain3` (fixed arity) as the closest honest alternative;
-  see lesson 9, "THE SECOND WALL."
+  offers `Chain2`/`Chain3`/`Chain4` (fixed arity) as the closest honest
+  alternative — `Chain4` exists because the deck's own weather chain is four
+  functions long and `Chain3` could not run it, and the library chain's five
+  would need a `Chain5` that is not there; see lesson 9, "THE SECOND WALL."
 - **No `Mapper` interface**, same reason `fp` has none (slide 47), on two
   independent grounds: a type parameter on a method declared inside an
   interface is rejected (`interface method must have no type parameters`,

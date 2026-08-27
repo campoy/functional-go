@@ -77,3 +77,41 @@ func ExampleChain3_pointerStep() {
 	fmt.Println(got)
 	// Output: cloudy
 }
+
+// The weather chain of slides 57 through 63, mirrored here because
+// examples/weather is package main and cannot be imported. Value receivers
+// returning pointers, exactly as the deck declares them.
+type (
+	chainPerson  struct{ addr *chainAddress }
+	chainAddress struct{ city *chainCity }
+	chainCity    struct{ weather *chainWeather }
+	chainWeather struct{ desc string }
+)
+
+func (p chainPerson) Address() *chainAddress { return p.addr }
+func (a chainAddress) City() *chainCity      { return a.city }
+func (c chainCity) Weather() *chainWeather   { return c.weather }
+func (w chainWeather) Description() string   { return w.desc }
+
+func ExampleChain4() {
+	// The talk's own chain, run end to end: four functions, which is one more
+	// than Chain3 takes. Reaching it needed a whole new function in
+	// fpgen/chain.go, and a five-step chain would need another -- that is
+	// lesson 9's wall, met at the deck's own length.
+	//
+	// Only the first step can be a bare method expression: every later one
+	// receives the previous step's pointer and its method has a value
+	// receiver, so the dereference is written out, three times, where a
+	// reader sees it. fp.Maybe.Do does the same three conversions invisibly
+	// inside argValue (fp/func.go).
+	p := chainPerson{addr: &chainAddress{city: &chainCity{weather: &chainWeather{desc: "cloudy"}}}}
+
+	got := fpgen.Chain4(p,
+		chainPerson.Address,
+		func(a *chainAddress) *chainCity { return a.City() },
+		func(c *chainCity) *chainWeather { return c.Weather() },
+		func(w *chainWeather) string { return w.Description() },
+	)
+	fmt.Println(got)
+	// Output: cloudy
+}

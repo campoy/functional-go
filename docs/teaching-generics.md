@@ -369,8 +369,13 @@ func Do[T, U any](v T, fs ...func(T) U) U        // legal; every step must be th
 That is exactly what makes this wall easy to miss, and worth stating
 separately: nothing stops you writing the signature. The second and third
 are not walls at all — they compile *and* accept calls, having given up type
-safety and generality respectively. Only the first is a wall, and only when
-asked to run a chain whose type changes at every step:
+safety and generality respectively. The second gives up inference as well:
+`U` appears in no parameter, so nothing can infer it and the call has to
+name both type arguments — `Do[Person, string](p, steps...)` compiles,
+`Do(p, steps...)` gets `cannot infer U`. That is lesson 2's boundary again
+(`T` in the first signature is inferred from `v`; a type parameter only in
+the result never is). Only the first is a wall, and only when asked to run a
+chain whose type changes at every step:
 
 ```go
 Do(p, Person.Address, Address.City, City.Weather, Weather.Description)
@@ -398,12 +403,22 @@ asserted in prose.
 
 - **Nested calls** — `MaybeMap(MaybeMap(MaybeMap(m, step1), step2), step3)`
   — correct, and unreadable past three steps.
-- **A fixed-arity family** — `fpgen.Chain2[A, B, C any]` and
-  `fpgen.Chain3[A, B, C, D any]`, readable, but the library has to predict
-  the longest chain anyone wants and provide a `Chain` for it. `ExampleChain3`
-  (`fpgen/example_test.go`) rebuilds the weather chain's shape this way. A
-  fifth step needs a `Chain4` nobody has written yet — this does not
-  generalise, and the doc comment on `Chain2`/`Chain3` says so.
+- **A fixed-arity family** — `fpgen.Chain2[A, B, C any]`,
+  `fpgen.Chain3[A, B, C, D any]`, `fpgen.Chain4[A, B, C, D, E any]`:
+  readable, but the library has to predict the longest chain anyone wants
+  and provide a `Chain` for it. Watch that prediction fail here. `Chain2` and
+  `Chain3` were written first, and `ExampleChain3` and
+  `ExampleChain3_pointerStep` (`fpgen/example_test.go`) show the mechanism at
+  a readable size — but neither reaches the talk's own chain, which is *four*
+  functions (`Person.Address`, `Address.City`, `City.Weather`,
+  `Weather.Description`, slide 63). Running that end to end cost a fourth
+  type parameter's worth of boilerplate, `Chain4`, and `ExampleChain4` runs
+  it. The library example of slides 72–74 is five functions
+  (`Library.Books`, `Book.Pages`, `Page.Lines`, `Line.Text`,
+  `strings.Fields`) and needs a `Chain5` nobody has written. There is no
+  arity at which the family is *finished*: every extra step is the same three
+  lines with one more type parameter, world without end. `fp.Maybe.Do` takes
+  any length because `reflect` never has to know the length in advance.
 - **Keep reflection** — `fp.Maybe.Do` itself, unchanged: arbitrary length,
   back to run-time type errors instead of compile errors.
 
