@@ -28,9 +28,13 @@ be written — and the table's last two rows are its two independent supports,
 not two separate walls: one tested, one argued, both holding up the same
 refusal. The differences between all three walls are part of what this
 document teaches, not fine print. Wall 1 announces itself at the
-declaration, and `go1.27` lifted it for concrete types: it is a wall for
-*this repository*, pinned at its deliberate `go 1.21` floor, rather than for
-the language forever, and lesson 5 says so plainly. Wall 2 lets you write
+declaration, and `go1.27` lifted it for concrete types: it is a wall for a
+module pinned below that floor, rather than for the language forever, and
+lesson 5 says so plainly. `fpgen/go.mod` now declares `go 1.27` in its own
+right (see "Two modules" below), so the wall no longer describes `fpgen`'s
+ambient floor either — it survives here only because its test explicitly
+asks the compiler to pretend the floor is still `go 1.21`. Wall 2 lets you
+write
 the signature, compiles it happily, and only objects when you feed it a
 chain whose type changes at every step — which is why it is the one people
 expect generics to have solved. Wall 3 stands in two places at once: its
@@ -48,6 +52,24 @@ argument.
 
 `fp` is unchanged by this work — see `NOTES.md`'s "fpgen" section for
 `fpgen`'s own departures from a literal transliteration.
+
+**Two modules.** `fpgen` has its own `go.mod` (`fpgen/go.mod`), declaring
+`go 1.27`, separate from the root module's `go 1.21` that `fp`, `sum` and
+the examples still declare. The root's floor is a deliberate oldest-toolchain
+gate (see `AGENTS.md`); `fpgen` is the package that teaches the *current*
+generics language, so pinning it below the version where lesson 5's wall
+fell would make it teach something false about the language it claims to
+cover. Splitting means the two floors no longer have to agree, at the cost
+of a second `go.mod`/`go.sum`, a `replace` directive so `fpgen`'s tests can
+still import `fp` for the lesson 7 contrast, a doubled CI job set
+(`.github/workflows/ci.yml`), and the loss of a single `go build ./...` /
+`go test ./...` at the repo root: a nested module is invisible to the
+parent module's `./...`, so `fpgen` needs its own commands, run from
+`fpgen/`. GOTOOLCHAIN's default of `auto` matters here too — a toolchain
+older than a module's declared floor doesn't fail, it downloads a newer one
+and re-execs, so `fpgen`'s CI leg is pinned at `1.27`, not `1.21`: pointing
+it at `1.21` would silently test `1.27` again over the network rather than
+proving anything about `1.21`.
 
 ---
 

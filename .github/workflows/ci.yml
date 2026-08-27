@@ -90,3 +90,93 @@ jobs:
       # names) does not trip any of them. See NOTES.md.
       - name: staticcheck
         run: staticcheck ./...
+
+  # fpgen is a separate module (fpgen/go.mod) with its own, later `go`
+  # directive, so it needs its own jobs: `go build ./...` from the repo root
+  # silently excludes a nested module, and a toolchain older than fpgen's own
+  # floor cannot build it at all -- see fpgen-build-test below on why that
+  # leg is pinned to `1.27`, not `1.21`.
+  fpgen-build-test:
+    name: fpgen build & test (Go ${{ matrix.go }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fpgen
+    strategy:
+      fail-fast: false
+      matrix:
+        # fpgen's floor, mirroring the root job's ["1.21", "stable"] shape --
+        # but NOT "1.21": GOTOOLCHAIN defaults to auto, so a go1.21 toolchain
+        # asked to build a go-1.27-floored module doesn't fail, it silently
+        # downloads go1.27 and re-execs. Pointing this leg at "1.21" would
+        # not test fpgen at 1.21 at all; it would just test 1.27 again, more
+        # slowly, with a network dependency the other leg doesn't have.
+        go: ["1.27", "stable"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          cache-dependency-path: fpgen/go.sum
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        run: go test ./...
+
+      - name: go test -race
+        run: go test -race ./...
+
+  fpgen-vet:
+    name: fpgen gofmt & go vet
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fpgen
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: fpgen/go.sum
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-clean:"
+            echo "$unformatted" | sed 's/^/  /'
+            echo
+            echo "Run: gofmt -w $(echo "$unformatted" | tr '\n' ' ')"
+            while IFS= read -r file; do
+              echo "::error file=$file::$file is not gofmt-formatted"
+            done <<< "$unformatted"
+            exit 1
+          fi
+          echo "All files are gofmt-clean."
+
+      - name: go vet
+        run: go vet ./...
+
+  fpgen-staticcheck:
+    name: fpgen staticcheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fpgen
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: fpgen/go.sum
+
+      - name: install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@${{ env.STATICCHECK_VERSION }}
+
+      - name: staticcheck
+        run: staticcheck ./...
