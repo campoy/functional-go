@@ -25,11 +25,15 @@ type List[T any] struct {
 // generic transliteration is not legal Go:
 //
 //	func (l *List[A]) Map[B any](f func(A) B) *List[B] { ... }
-//	// testdata/wall_method_type_param.go:16:23: generic method requires go1.27 or later (-lang was set to go1.21; check go.mod)
+//	// testdata/wall_method_type_param.go:17:23: generic method requires go1.27 or later (-lang was set to go1.21; check go.mod)
 //
 // (verified against this module's own floor -- see
 // fpgen/testdata/wall_method_type_param.go and fpgen/wall_test.go, which
-// runs `go build -gcflags=-lang=go1.21` on it and checks that exact text).
+// runs `go build -gcflags=-lang=go1.21` on it and asserts the compiler
+// really rejects it. The line above is pinned character for character on a
+// go1.27 or later toolchain; an older one rejects the same file in its
+// parser, with no version gate to report, so the test accepts that spelling
+// too rather than pretending every toolchain words it the same way).
 // A method's receiver fixes every type parameter the method can use;
 // List[A]'s Map needs a second one, B, that the receiver does not supply,
 // and under the go1.21 semantics this module declares there is no syntax

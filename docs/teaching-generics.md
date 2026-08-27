@@ -142,12 +142,19 @@ Building `fpgen/testdata/wall_method_type_param.go` under this module's
 declared `go 1.21` (`go.mod`) gives:
 
 ```
-fpgen/testdata/wall_method_type_param.go:16:23: generic method requires go1.27 or later (-lang was set to go1.21; check go.mod)
+testdata/wall_method_type_param.go:17:23: generic method requires go1.27 or later (-lang was set to go1.21; check go.mod)
 ```
 
+(run from `fpgen/`, which is why the path is relative to that directory).
 `TestWallMethodTypeParams` in `fpgen/wall_test.go` runs `go build
--gcflags=-lang=go1.21` on that exact file and pins that exact diagnostic, so
-this claim is a checked fact, not an assertion.
+-gcflags=-lang=go1.21` on that file and asserts the compiler really rejects
+it, so this claim is a checked fact, not an assertion. On a go1.27 or later
+toolchain it additionally pins the line above character for character,
+position included, so an edit to the testdata file cannot quietly falsify
+this quote. A toolchain older than 1.27 has no version gate to report and
+rejects the same file in its parser instead (`method must have no type
+parameters`), so the test accepts that spelling as well — the wall is the
+same, only the wording differs.
 
 **The nuance, stated precisely because it changes the shape of the lesson:**
 Go 1.27 *did* lift this restriction — generic methods are real Go as of that
@@ -381,7 +388,7 @@ which would break this repository's `gofmt -l .` if the file were a plain
 — deliberately not `go1.21`, because `1.27` is exactly where the distinction
 between "generic method on a concrete type" (now legal) and "generic method
 inside an interface" (still not) becomes visible; at `1.21` both fail the
-same way, which would hide the point — and pins that exact diagnostic.
+same way, which would hide the point — and pins that diagnostic's text.
 
 Even granting a hypothetical language that allowed generic interface
 methods, a second, independent gap remains: Go has no way to abstract over
@@ -429,10 +436,20 @@ Apple M4 Pro, Go 1.27 (see `docs/investigations/generics-vs-reflection.md`
 for the full numbers and reproduction command, following the format
 `docs/investigations/benchmark-input-size.md` set). `fpgen` is roughly 4.7×
 faster and does half the allocations per element. Both pay two: the new
-`*List` cell and the string `strings.ToUpper` returns. `fp` pays two more on
-top, boxing that `string` into an `interface{}` in each direction of
-`Func.Call` -- four per element against `fpgen`'s two, which is exactly the
-4,000 versus 2,000 in the table.
+`*List` cell (24 B) and the string `strings.ToUpper` returns (8 B).
+
+`fp` pays two more on top, and — measured rather than assumed — neither is
+interface boxing. `fp.List.Head` and `Func.Call`'s parameter are both
+already declared `interface{}` (`fp/list.go`, `fp/func.go`), so passing
+`l.Head` in converts nothing, and `res[0].Interface()` on the way out
+repacks the existing pointer rather than copying. The two extra allocations
+are `reflect.Value.Call`'s own result machinery: the `make([]Value, nout)`
+slice it wraps return values in (24 B), and the `unsafe_New` storage it
+allocates for a value returned in registers (16 B). That is 24 + 8 + 24 + 16
+= 72 B across four allocations per element, against `fpgen`'s 24 + 8 = 32 B
+across two — exactly the table's 72,000 B/4,000 allocs and 32,000 B/2,000
+allocs over 1000 elements. `docs/investigations/generics-vs-reflection.md`
+records the `pprof` breakdown those four sites come from.
 
 Against that speed and allocation win: no compile-time safety on the paths
 `fp` covers and `fpgen` cannot (lessons 9-10), a panic instead of a returned

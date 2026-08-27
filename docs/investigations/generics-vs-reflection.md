@@ -66,10 +66,35 @@ Both allocate the same two things per element. 1000 elements means 1000 new
 returns, once per element, in both. That is `fpgen`'s 2000 exactly; swapping
 `strings.ToUpper` for an identity `func(string) string` drops
 `BenchmarkFPGenListMap` to 1000 allocs/op, leaving just the cells. The
-difference is the *two extra* allocations per element that `fp` pays:
-`fp.Func.Call` takes and returns `interface{}`, so passing `l.Head` in and
-`f.Call(l.Head)`'s result back out each box a `string` into an `interface{}`.
-That accounts for the 2× allocation gap (4000 vs 2000) directly;
+difference is the *two extra* allocations per element that `fp` pays — and
+neither of them is what you would first guess.
+
+It is tempting to say `fp` boxes the `string` into an `interface{}` on the
+way into `Func.Call` and again on the way out. It does not. `fp.List.Head`
+is declared `interface{}` (`fp/list.go`) and `Func.Call`'s parameter is
+`interface{}` too (`fp/func.go`), so `f.Call(l.Head)` performs no conversion
+at all; and `res[0].Interface()` repacks the pointer `reflect` already holds
+rather than copying the string. A memory profile names the four real sites:
+
+```sh
+go test ./fpgen -run XXX -bench BenchmarkFPListMap -benchmem \
+    -memprofilerate=1 -memprofile fp.mprof -benchtime=200x
+go tool pprof -sample_index=alloc_space -lines -top fp.mprof
+```
+
+| Site | B/element |
+| --- | ---: |
+| `fp.(*List).Map` — the `&List{...}` cell (`fp/list.go`) | 24 |
+| `strings.ToUpper` — the `"HELLO"` it returns | 8 |
+| `reflect.Value.call` — `ret = make([]Value, nout)` | 24 |
+| `reflect.unsafe_New` — storage for a register-returned value | 16 |
+
+24 + 8 + 24 + 16 = **72 B and four allocations per element**, reproducing
+the recorded 72,000 B/op and 4,000 allocs/op exactly. `fpgen` pays the first
+two only: 24 + 8 = 32 B and two allocations, i.e. 32,000 B/op and 2,000
+allocs/op. So `fp`'s overhead here is `reflect.Value.Call`'s result
+machinery, not interface boxing. That accounts for the 2× allocation gap
+(4000 vs 2000) directly;
 the larger time gap (4.7×) also includes `reflect.Value.Call`'s own dispatch
 overhead, which has no generics-side equivalent to compare against because
 there is no reflection happening at all.

@@ -50,6 +50,13 @@ func skipUnlessGo127(t *testing.T) {
 	}
 }
 
+// wantGo121Diagnostic is the exact line a go1.27 or later toolchain prints
+// for testdata/wall_method_type_param.go at -lang=go1.21. It is quoted
+// verbatim by fpgen/list.go's ListMap doc comment and by lesson 5 of
+// docs/teaching-generics.md; TestWallMethodTypeParams below is what keeps
+// all three copies honest.
+const wantGo121Diagnostic = "testdata/wall_method_type_param.go:17:23: generic method requires go1.27 or later (-lang was set to go1.21; check go.mod)"
+
 // TestWallMethodTypeParams runs the real go build on
 // testdata/wall_method_type_param.go and pins the real compiler diagnostic,
 // so lesson 5's claim in docs/teaching-generics.md (methods cannot have type
@@ -77,6 +84,15 @@ func TestWallMethodTypeParams(t *testing.T) {
 		`generic method requires go1\.27 or later|method must have no type parameters`,
 		string(out),
 		"expected the compiler to reject a type parameter list on a method")
+
+	// On a toolchain that can produce it, pin the whole line -- position
+	// included. fpgen/list.go and docs/teaching-generics.md quote this text
+	// verbatim, and without the position pinned an edit to the testdata
+	// file's header silently shifts the line number out from under both.
+	if goMinorVersion(t) >= 27 {
+		assert.Contains(t, string(out), wantGo121Diagnostic,
+			"the diagnostic quoted verbatim in fpgen/list.go and docs/teaching-generics.md must match what the compiler actually prints")
+	}
 }
 
 // TestWallMethodTypeParamsLiftedAtGo127 is the positive half of lesson 5's
