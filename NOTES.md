@@ -185,8 +185,11 @@ transliteration of `fp`, in this file's usual style.
   no generic signature — Go's variadics are homogeneous. `fpgen/chain.go`
   offers `Chain2`/`Chain3`/`Chain4` (fixed arity) as the closest honest
   alternative — `Chain4` exists because the deck's own weather chain is four
-  functions long and `Chain3` could not run it, and the library chain's five
-  would need a `Chain5` that is not there; see lesson 9, "THE SECOND WALL."
+  functions long and `Chain3` could not run it, while the library chain is
+  out of reach at any arity: every `Chain` composes 1:1, and that chain
+  flattens at every step (`Library.Books` returns `[]Book`, `Book.Pages`
+  takes a `Book`), which is `FlatMap`'s job instead — see lesson 8, and
+  lesson 9, "THE SECOND WALL."
 - **No `Mapper` interface**, same reason `fp` has none (slide 47), on two
   independent grounds: a type parameter on a method declared inside an
   interface is rejected (`interface method must have no type parameters`,

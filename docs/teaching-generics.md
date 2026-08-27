@@ -414,9 +414,14 @@ asserted in prose.
   `Weather.Description`, slide 63). Running that end to end cost a fourth
   function argument's worth of boilerplate — `Chain4`, five type parameters
   to `Chain3`'s four — and `ExampleChain4` runs it. The library example of
-  slides 72–74 is five functions (`Library.Books`, `Book.Pages`,
-  `Page.Lines`, `Line.Text`, `strings.Fields`) and needs a `Chain5` nobody
-  has written. There is no
+  slides 72–74 is out of reach at *any* arity, which is a second and
+  independent limit: `Library.Books` is `func(Library) []Book` while
+  `Book.Pages` is `func(Book) []Page`, so step two takes an *element* of what
+  step one returned. Every `Chain` composes 1:1 — step N's result into step
+  N+1's argument — so no `Chain5`, and no `ChainN`, holds that chain; it
+  needs flattening between the steps, which is `FlatMap`'s job (lesson 8) and
+  `toSlice`'s inside `fp.Many.Map`. A second, parallel family of flattening
+  chains would have to sit on top of the arity ladder. There is no
   arity at which the family is *finished*: every extra step is the same three
   lines with one more type parameter, world without end. `fp.Maybe.Do` takes
   any length because `reflect` never has to know the length in advance.

@@ -65,10 +65,19 @@ package fpgen
 // City.Weather and Weather.Description, four functions, so running it end
 // to end cost a fourth function argument's worth of boilerplate -- Chain4,
 // below, five type parameters to Chain3's four, exercised by ExampleChain4
-// in fpgen/example_test.go. The library
-// example of slides 72-74 is longer still (Library.Books, Book.Pages,
-// Page.Lines, Line.Text, strings.Fields: five functions), and needs a Chain5
-// nobody has written. There is no arity at which this family is finished.
+// in fpgen/example_test.go.
+//
+// The library example of slides 72-74 is out of reach at any arity, and that
+// is a second limit, independent of the first. Library.Books is
+// func(Library) []Book while Book.Pages is func(Book) []Page, so step two
+// takes an element of what step one returned, not the slice itself. Every
+// Chain here composes 1:1 -- step N's result is step N+1's argument, however
+// many parameters N brings -- so no Chain5, and no ChainN, can hold that
+// chain. It needs flattening between the steps, which is FlatMap's job here
+// (lesson 8) and toSlice's inside fp.Many.Map; expressing it would take a
+// second, parallel family of flattening chains on top of the arity ladder.
+//
+// There is no arity at which this family is finished.
 // Every additional step is the same three lines with one more type
 // parameter and one more argument, world without end, which is exactly why
 // a fixed-arity family is a wall rather than a solution: fp.Maybe.Do accepts
