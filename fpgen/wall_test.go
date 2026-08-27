@@ -208,8 +208,7 @@ func wallDo[T any](v T, fs ...func(T) T) T {
 	return v
 }
 
-type wallPerson struct{ address *wallAddress }
-type wallAddress struct{}
+type wallPerson struct{}
 
 // This is the other half of lesson 9's point, and the reason the wall needed
 // a call site to show up at all: the homogeneous variadic signature is

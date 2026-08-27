@@ -367,9 +367,13 @@ relative to `fpgen/`, where the test runs) and always asserts the call is
 rejected, pinning the position and both function types; on a go1.27 or later
 toolchain it pins the line above character for character. Under go1.21 the
 compiler words the same rejection without the `in call to Do,` clause —
-identical position, types and reason — so the test accepts either spelling. A companion test builds the bare `Do` declaration on its own
-and asserts it *succeeds* — the declaration-versus-call-site distinction is
-itself under test, not just asserted in prose.
+identical position, types and reason — so the test accepts either spelling.
+The other half is pinned without a test at all: a package-level `var _
+func(wallPerson, ...func(wallPerson) wallPerson) wallPerson =
+wallDo[wallPerson]` in the same file proves the bare `Do` declaration
+compiles, and every ordinary `go build`, `go test` and `go vet` checks it. So
+the declaration-versus-call-site distinction is itself under test, not just
+asserted in prose.
 
 **The honest alternatives, in `fpgen/chain.go`:**
 

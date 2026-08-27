@@ -39,9 +39,12 @@ package fpgen
 // fpgen/testdata/wall_variadic_chain.go and TestWallVariadicChain in
 // fpgen/wall_test.go, which builds that file, always asserts the call is
 // rejected, and pins the line above character for character on a go1.27 or
-// later toolchain. A companion test builds the bare Do declaration to prove
-// it compiles, since "the declaration is fine, the call is not" is the
-// whole distinction.)
+// later toolchain. The other half -- that the bare Do declaration itself
+// compiles -- is pinned by a package-level declaration in that same file,
+// var _ func(wallPerson, ...func(wallPerson) wallPerson) wallPerson =
+// wallDo[wallPerson], checked by every ordinary go build, go test and go
+// vet rather than by a runtime assertion, since "the declaration is fine,
+// the call is not" is the whole distinction.)
 //
 // The honest alternatives are: nested calls (MaybeMap(MaybeMap(MaybeMap(m,
 // step1), step2), step3) -- correct, and unreadable past three steps), a
