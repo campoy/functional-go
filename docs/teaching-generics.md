@@ -22,8 +22,11 @@ enough to say up front:
 | Generic methods inside an interface | 10 | **Declaration** | **Compiler** — `TestWallInterfaceMethodTypeParams` | the interface declaration itself |
 | No higher-kinded types | 10 | **Nowhere — inexpressible** | **Argument** — no declaration exists to reject | nothing; the shape cannot be written down at all |
 
-The four rows are the three walls, with wall 3 split into its two genuinely
-different halves — and the differences between them are part of what this
+The four rows are the three walls. Wall 3 is named for what it blocks, not
+for either reason it's blocked — slide 47's `Mapper` interface still cannot
+be written — and the table's last two rows are its two independent supports,
+not two separate walls: one tested, one argued, both holding up the same
+refusal. The differences between all three walls are part of what this
 document teaches, not fine print. Wall 1 announces itself at the
 declaration, and `go1.27` lifted it for concrete types: it is a wall for
 *this repository*, pinned at its deliberate `go 1.21` floor, rather than for
@@ -410,7 +413,7 @@ variadics are a real design choice with a real cost, paid exactly at the
 point `fp.Maybe.Do`'s heterogeneous chain lives — and paid at the call, not
 at the declaration.
 
-## 10. THE THIRD WALL — no higher-kinded types
+## 10. THE THIRD WALL — the Mapper interface still cannot be written
 
 **Before:** slide 47. `fp`'s three containers can't share a `Mapper`
 interface because the return type of `Map` can't be spelled:
