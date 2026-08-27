@@ -28,6 +28,20 @@ func ExampleMaybeMap() {
 	// 0 false
 }
 
+func ExampleMaybeMap_pointer() {
+	// ok, not nilness, decides presence: a Maybe holding a nil *box is still
+	// present, so its nil-safe method (box.Get, maybe_test.go) runs and its
+	// real answer comes through, rather than the Maybe being treated as
+	// missing. Contrast fp.Maybe, which cannot make this distinction --
+	// TestMaybeNilRegressionContrast (maybe_test.go) and lesson 7
+	// (docs/teaching-generics.md) are the regression this avoids.
+	var b *box // typed nil, but present
+	m := fpgen.MaybeMap(fpgen.Some(b), (*box).Get)
+	fmt.Println(m.Get())
+	// Output:
+	// -1 true
+}
+
 func ExampleFlatMap() {
 	// The generic answer to slide 68's chain: ToUpper keeps one cell per
 	// element (ManyMap), Fields multiplies each into several (FlatMap).
