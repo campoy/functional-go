@@ -42,9 +42,10 @@ package fpgen
 // later toolchain. The other half -- that the bare Do declaration itself
 // compiles -- is pinned by a package-level declaration in that same file,
 // var _ func(wallPerson, ...func(wallPerson) wallPerson) wallPerson =
-// wallDo[wallPerson], checked by every ordinary go build, go test and go
-// vet rather than by a runtime assertion, since "the declaration is fine,
-// the call is not" is the whole distinction.)
+// wallDo[wallPerson], checked by every ordinary go test and go vet -- both
+// type-check test files, which go build does not -- rather than by a
+// runtime assertion, since "the declaration is fine, the call is not" is
+// the whole distinction.)
 //
 // The honest alternatives are: nested calls (MaybeMap(MaybeMap(MaybeMap(m,
 // step1), step2), step3) -- correct, and unreadable past three steps), a

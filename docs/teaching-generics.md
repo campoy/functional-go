@@ -15,18 +15,33 @@ document as the features are.
 The three do not all stand in the same place, and the difference matters
 enough to say up front:
 
-| Wall | Lesson | Enforced at | What the compiler rejects |
-| --- | --- | --- | --- |
-| Methods cannot have type parameters | 5 | **Declaration** | the method declaration itself |
-| Heterogeneous variadic chains | 9 | **Call site** | a call; every candidate signature *declares* fine |
-| No higher-kinded types | 10 | **Declaration** | the interface declaration itself |
+| Wall | Lesson | Enforced at | Established by | What the compiler rejects |
+| --- | --- | --- | --- | --- |
+| Methods cannot have type parameters | 5 | **Declaration** (lifted in go1.27) | **Compiler** — `TestWallMethodTypeParams` | the method declaration itself |
+| Heterogeneous variadic chains | 9 | **Call site** | **Compiler** — `TestWallVariadicChain` | a call; every candidate signature *declares* fine |
+| Generic methods inside an interface | 10 | **Declaration** | **Compiler** — `TestWallInterfaceMethodTypeParams` | the interface declaration itself |
+| No higher-kinded types | 10 | **Nowhere — inexpressible** | **Argument** — no declaration exists to reject | nothing; the shape cannot be written down at all |
 
-Walls 1 and 3 announce themselves: write the declaration, the compiler
-refuses it. Wall 2 lets you write the signature, compiles it happily, and
-only objects when you feed it a chain whose type changes at every step —
-which is why it is the one people expect generics to have solved. Each of
-the three is pinned by a real `go build` diagnostic in `fpgen/wall_test.go`,
-asserted against actual compiler output rather than described.
+The four rows are the three walls, with wall 3 split into its two genuinely
+different halves — and the differences between them are part of what this
+document teaches, not fine print. Wall 1 announces itself at the
+declaration, and `go1.27` lifted it for concrete types: it is a wall for
+*this repository*, pinned at its deliberate `go 1.21` floor, rather than for
+the language forever, and lesson 5 says so plainly. Wall 2 lets you write
+the signature, compiles it happily, and only objects when you feed it a
+chain whose type changes at every step — which is why it is the one people
+expect generics to have solved. Wall 3 stands in two places at once: its
+first half is a declaration the compiler refuses outright, with no version
+gate in sight; its second half is not a rejection at all, because there is
+no way to write a higher-kinded declaration down for a compiler to refuse.
+
+Wherever a compiler rejection exists — the first three rows — it is pinned
+by a real `go build` diagnostic in `fpgen/wall_test.go`, asserted against
+actual compiler output rather than described. The fourth row is established
+by argument, and can only be: a shape the language cannot express produces
+no diagnostic to capture. Both halves of wall 3 hold; they are simply
+reached by different means, and the argument is no weaker for being an
+argument.
 
 `fp` is unchanged by this work — see `NOTES.md`'s "fpgen" section for
 `fpgen`'s own departures from a literal transliteration.
@@ -371,8 +386,9 @@ identical position, types and reason — so the test accepts either spelling.
 The other half is pinned without a test at all: a package-level `var _
 func(wallPerson, ...func(wallPerson) wallPerson) wallPerson =
 wallDo[wallPerson]` in the same file proves the bare `Do` declaration
-compiles, and every ordinary `go build`, `go test` and `go vet` checks it. So
-the declaration-versus-call-site distinction is itself under test, not just
+compiles, and every ordinary `go test` and `go vet` checks it — both
+type-check test files, which `go build` does not. So the
+declaration-versus-call-site distinction is itself under test, not just
 asserted in prose.
 
 **The honest alternatives, in `fpgen/chain.go`:**

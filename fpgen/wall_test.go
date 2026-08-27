@@ -199,8 +199,8 @@ func TestWallVariadicChain(t *testing.T) {
 // wallDo is a package-local copy of the same-type variadic signature
 // declared in testdata/wall_variadic_chain.go (that file is package main and
 // //go:build ignore, so it cannot be imported). Declared here so an ordinary
-// go build / go test / go vet -- checking against this module's own go1.21
-// floor, no shell-out needed -- proves it compiles.
+// go test / go vet -- which type-check this test package against the
+// module's own go1.21 floor, no shell-out needed -- proves it compiles.
 func wallDo[T any](v T, fs ...func(T) T) T {
 	for _, f := range fs {
 		v = f(v)
