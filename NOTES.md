@@ -4,7 +4,7 @@ Where this repository departs from the literal text of the slides, and why.
 
 The deck (`docs/functional_go.pdf`) was written to be projected, not compiled. Several snippets do not build as printed, and several functions are called but never defined. This file records every such decision so the reconstruction can be audited against the source. `docs/api-from-slides.md` holds the signature-by-signature checklist; this file holds the reasoning.
 
-**Status:** `sum/`, `fp/` and both examples are implemented. Everything not marked as an implementation note was decided by reading the deck.
+**Status:** `sum/`, `fp/`, `fpgen/` and both examples are implemented. Everything not marked as an implementation note was decided by reading the deck.
 
 ## Deviations from the literal slide text
 
@@ -144,7 +144,7 @@ They are plain functions taking a `Person` rather than methods with invented nam
 
 **Linter: `staticcheck`, pinned, with no suppressions.** Chosen over `golangci-lint` because it is a single tool with a single pinned version and needs no configuration file, which suits a repository that keeps its non-test code free of third-party dependencies. It is installed as a CI tool only; it never enters `go.mod`.
 
-The expectation was that a modern linter would object to the deliberate 2015-era style — `reflect` and `interface{}` throughout, no generics, slide-faithful names. It does not. staticcheck's default check set reports nothing, on `sum/` and on the reflection-heavy `fp/` code alike, so nothing is disabled and no `staticcheck.conf` exists. If a future check does fire on deliberate style, the exclusion belongs in a `staticcheck.conf` scoped as narrowly as the tool allows, with a comment naming the constraint it serves — not a blanket `//lint:ignore`.
+The expectation was that a modern linter would object to the deliberate 2015-era style — `reflect` and `interface{}` throughout, no generics, slide-faithful names. It does not. staticcheck's default check set reports nothing, on `sum/`, on the reflection-heavy `fp/` code, and on `fpgen/`'s type parameters alike, so nothing is disabled and no `staticcheck.conf` exists. If a future check does fire on deliberate style, the exclusion belongs in a `staticcheck.conf` scoped as narrowly as the tool allows, with a comment naming the constraint it serves — not a blanket `//lint:ignore`.
 
 Enabling the non-default `ST*` checks was tried and rejected: the only thing it surfaced was a doc-comment phrasing nit, which is not worth the maintenance.
 
@@ -165,7 +165,8 @@ transliteration of `fp`, in this file's usual style.
   what `fp` spells `Map` three times plus a slice `Map` it never had.** A
   method's name lives in its receiver's namespace; a free function's name
   lives in the one flat package namespace, and Go has no overloading. Since
-  methods cannot have type parameters (lesson 5, "THE FIRST WALL"), all of
+  methods cannot have type parameters at this module's `go 1.21` floor
+  (lesson 5, "THE FIRST WALL" — see the `go.mod` note below), all of
   `fp.List.Map`/`fp.Maybe.Map`/`fp.Many.Map`'s generic counterparts have to
   be free functions, and so cannot share fp's one name.
 - **`Each` stays a method, where `ManyMap` and `FlatMap` are free
@@ -218,11 +219,11 @@ extra allocations per element — is in
 
 ## Modernizations deliberately refused
 
-The talk exists because Go 1.5 had no generics. Rewriting any of this with type parameters would erase the subject matter, so:
+The talk exists because Go 1.5 had no generics. Rewriting any of this with type parameters would erase the subject matter, so, in `fp/`, `sum/` and the examples:
 
-- no type parameters anywhere, however much `Map` is asking for them
+- no type parameters, however much `Map` is asking for them
 - `interface{}` is never spelled `any` — the 2015 spelling is part of the artifact
 - no third-party dependencies in non-test code; `testify` is allowed in tests, and is the only entry in `go.mod`
 - no renaming for taste, even where the slide names are awkward (`Func`, `Many`, `Do`)
 
-A generic version of this library would be perhaps a fifth of the size and fully type-safe at compile time. That comparison is the point of preserving this one, not a reason to change it.
+A generic version of this library is smaller and fully type-safe at compile time. It exists — as `fpgen/`, a sibling package written alongside this one rather than in place of it (see the `fpgen` section above and `docs/teaching-generics.md`). That comparison is the point of preserving this one, not a reason to change it.

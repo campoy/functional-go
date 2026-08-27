@@ -119,13 +119,13 @@ go test ./sum -bench . -benchmem -count=5
 
 ## Constraints
 
-The reconstruction deliberately keeps the code as it would have been written in 2015:
+The reconstruction — `fp/`, `sum/` and the examples — deliberately keeps the code as it would have been written in 2015:
 
 - no generics — `reflect` and `interface{}` throughout
 - no third-party dependencies in the library or examples themselves — `testify` is used in the tests, and nowhere else
 - the API surface stays exactly as the slides show it
 
-Modern Go would write most of this with type parameters in a fraction of the space. That is rather the point of the talk, and improving the code would erase it.
+Modern Go would write most of this with type parameters in a fraction of the space. That is rather the point of the talk, and improving the code in place would erase it — so the generic rewrite lives beside it, as [`fpgen/`](fpgen/), and never inside it.
 
 ## Takeaways from the talk
 

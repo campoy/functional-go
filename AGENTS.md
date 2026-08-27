@@ -21,11 +21,12 @@ Where the deck and the derived documents disagree, the deck wins, but read `docs
 **Outputs**, written as the work proceeds:
 
 - **`NOTES.md`** — the deviation log. Every departure from the literal slide text, and why. One entry per decision.
+- **`docs/teaching-generics.md`** — the generics curriculum: twelve ordered lessons, each anchored to a before-in-`fp` / after-in-`fpgen` pair, ending in the three walls generics does not remove. It describes these two packages, so it is edited to match them.
 - **`docs/investigations/`** — long-form findings that are too big for a `NOTES.md` bullet: a question that came up, how it was checked, and what the answer turned out to be. `tail-recursion.md` is the first (does Go eliminate tail calls? — no, and here is the proof).
 
 The rule of thumb: if a `NOTES.md` entry needs more than a paragraph, or if someone would reasonably want to re-run your evidence, it belongs in `docs/investigations/` with a one-line summary and a link left behind in `NOTES.md`.
 
-**Status:** complete. `sum/`, `fp/` and both examples are implemented and tested.
+**Status:** complete. `sum/`, `fp/`, `fpgen/` and both examples are implemented and tested.
 
 ### Reading the deck
 
