@@ -4,7 +4,7 @@
 // two functions whose types do not line up, the same mismatch fp.Compose
 // (fp/func.go) catches at run time with "can't compose: %v != %v". Here the
 // compiler catches it instead, before the program runs -- that shift is
-// lesson 3 in docs/teaching-generics.md, and fpgen/example_test.go runs
+// lesson 3 in docs/teaching-generics.md, and fpgen/wall_test.go runs
 // `go build` on this file to pin the real diagnostic.
 package main
 

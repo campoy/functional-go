@@ -71,8 +71,8 @@ func FlatMap[A, B any](m *Many[A], f func(A) []B) *Many[B] {
 	if m == nil {
 		return nil
 	}
-	rest := FlatMap(m.Tail, f)
 	vs := f(m.Head)
+	rest := FlatMap(m.Tail, f)
 	for i := len(vs) - 1; i >= 0; i-- {
 		rest = &Many[B]{vs[i], rest}
 	}

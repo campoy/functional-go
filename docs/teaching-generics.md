@@ -428,9 +428,11 @@ Median of five runs, `go test ./fpgen -bench . -benchmem -count=5`, on an
 Apple M4 Pro, Go 1.27 (see `docs/investigations/generics-vs-reflection.md`
 for the full numbers and reproduction command, following the format
 `docs/investigations/benchmark-input-size.md` set). `fpgen` is roughly 4.7×
-faster and does half the allocations per element (`fp` allocates a `*List`
-cell and boxes the `interface{}` conversion in `Func.Call`'s two directions;
-`fpgen` allocates only the cell).
+faster and does half the allocations per element. Both pay two: the new
+`*List` cell and the string `strings.ToUpper` returns. `fp` pays two more on
+top, boxing that `string` into an `interface{}` in each direction of
+`Func.Call` -- four per element against `fpgen`'s two, which is exactly the
+4,000 versus 2,000 in the table.
 
 Against that speed and allocation win: no compile-time safety on the paths
 `fp` covers and `fpgen` cannot (lessons 9-10), a panic instead of a returned

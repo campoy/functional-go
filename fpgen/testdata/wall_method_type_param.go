@@ -4,8 +4,9 @@
 // docs/teaching-generics.md: the obvious generic transliteration of
 // fp.List.Map (fp/list.go) as a method rather than a free function.
 //
-// fpgen/example_test.go runs `go build` on this exact file and asserts the
-// diagnostic below, so the claim in the doc comments cannot silently rot.
+// fpgen/wall_test.go runs `go build -gcflags=-lang=go1.21` on this exact
+// file and asserts the diagnostic below, so the claim in the doc comments
+// cannot silently rot.
 package testdata
 
 type List[T any] struct {

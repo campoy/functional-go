@@ -59,14 +59,17 @@ BenchmarkFPGenListMap-14    47544     25174 ns/op   32000 B/op   2000 allocs/op
 
 `fpgen` is about **4.7× faster** and allocates **half** as much per element.
 
-Both allocate: 1000 elements means 1000 new `*List` cells either way, which
-neither version can avoid — `List[T].Map`/`fpgen.ListMap` build a new list
-rather than mutating in place, same as `fp.List.Map`. The difference is the
-*second* allocation per element that `fp` pays and `fpgen` doesn't:
+Both allocate the same two things per element. 1000 elements means 1000 new
+`*List` cells either way, which neither version can avoid —
+`fpgen.ListMap` builds a new list rather than mutating in place, same as
+`fp.List.Map` — and `strings.ToUpper("hello")` allocates the `"HELLO"` it
+returns, once per element, in both. That is `fpgen`'s 2000 exactly; swapping
+`strings.ToUpper` for an identity `func(string) string` drops
+`BenchmarkFPGenListMap` to 1000 allocs/op, leaving just the cells. The
+difference is the *two extra* allocations per element that `fp` pays:
 `fp.Func.Call` takes and returns `interface{}`, so passing `l.Head` in and
-`f.Call(l.Head)`'s result back out both box a `string` into an `interface{}`
-— two boxing allocations per element on top of the cell, versus `fpgen`'s
-one. That accounts for the roughly 2× allocation gap (4000 vs 2000) directly;
+`f.Call(l.Head)`'s result back out each box a `string` into an `interface{}`.
+That accounts for the 2× allocation gap (4000 vs 2000) directly;
 the larger time gap (4.7×) also includes `reflect.Value.Call`'s own dispatch
 overhead, which has no generics-side equivalent to compare against because
 there is no reflection happening at all.

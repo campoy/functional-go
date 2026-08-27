@@ -25,13 +25,17 @@ type List[T any] struct {
 // generic transliteration is not legal Go:
 //
 //	func (l *List[A]) Map[B any](f func(A) B) *List[B] { ... }
-//	// ./list.go:1:23: methods cannot have type parameters
+//	// testdata/wall_method_type_param.go:16:23: generic method requires go1.27 or later (-lang was set to go1.21; check go.mod)
 //
-// (verified against go1.21 -- see fpgen/testdata/wall_method_type_param.go
-// and fpgen/example_test.go, which runs `go build` on it and checks that
-// exact line). A method's receiver fixes every type parameter the method can
-// use; List[A]'s Map needs a second one, B, that the receiver does not
-// supply, and Go has no syntax for a method to introduce one of its own. So
+// (verified against this module's own floor -- see
+// fpgen/testdata/wall_method_type_param.go and fpgen/wall_test.go, which
+// runs `go build -gcflags=-lang=go1.21` on it and checks that exact text).
+// A method's receiver fixes every type parameter the method can use;
+// List[A]'s Map needs a second one, B, that the receiver does not supply,
+// and under the go1.21 semantics this module declares there is no syntax
+// for a method to introduce one of its own. Go 1.27 lifted that for methods
+// on concrete types, which is why the diagnostic reads as a version gate --
+// but go.mod stays at go1.21, so the wall is real here. So
 // Map has to be a free function here, the same shape fp.List.Map itself
 // started as on slide 35 before slide 36 asked "Should this be a method? Of
 // what?" and slide 37 turned it into one. Generics answers that question
