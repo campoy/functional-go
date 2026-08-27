@@ -364,8 +364,10 @@ Do(p, Person.Address, Address.City, City.Weather, Weather.Description)
 type parameter for it to become. `TestWallVariadicChain` in
 `fpgen/wall_test.go` builds `fpgen/testdata/wall_variadic_chain.go` (path
 relative to `fpgen/`, where the test runs) and always asserts the call is
-rejected; on a go1.27 or later toolchain it pins the line above character
-for character. A companion test builds the bare `Do` declaration on its own
+rejected, pinning the position and both function types; on a go1.27 or later
+toolchain it pins the line above character for character. Under go1.21 the
+compiler words the same rejection without the `in call to Do,` clause —
+identical position, types and reason — so the test accepts either spelling. A companion test builds the bare `Do` declaration on its own
 and asserts it *succeeds* — the declaration-versus-call-site distinction is
 itself under test, not just asserted in prose.
 

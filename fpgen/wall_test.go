@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -148,10 +149,23 @@ func TestWallInterfaceMethodTypeParams(t *testing.T) {
 // pin is guarded and the unconditional assertion below is the looser one.
 const wantComposeDiagnostic = "testdata/compose_mismatch.go:18:27: in call to Compose, type func(n int) int of func(n int) int {…} does not match inferred type func(int) string for func(A) B"
 
-// wantVariadicChainDiagnostic is the exact line the compiler prints for
-// testdata/wall_variadic_chain.go. Quoted verbatim by fpgen/chain.go and by
-// lesson 9 of docs/teaching-generics.md.
+// wantVariadicChainDiagnostic is the exact line a go1.27 or later toolchain
+// prints for testdata/wall_variadic_chain.go. Quoted verbatim by
+// fpgen/chain.go and by lesson 9 of docs/teaching-generics.md.
 const wantVariadicChainDiagnostic = "testdata/wall_variadic_chain.go:44:12: in call to Do, type func(Person) *Address of Person.Address does not match inferred type func(Person) Person for func(T) T"
+
+// wantVariadicChainDiagnosticPre127 is the same rejection as go1.21 words
+// it. The two differ only by the "in call to Do, " clause, which go1.21's
+// inference path does not emit; position, types and reason are identical.
+const wantVariadicChainDiagnosticPre127 = "testdata/wall_variadic_chain.go:44:12: type func(Person) *Address of Person.Address does not match inferred type func(Person) Person for func(T) T"
+
+// variadicChainDiagnosticRE matches whichever of the two spellings above the
+// running toolchain produces, and nothing else -- the position, both
+// function types and the inference reason are all still pinned.
+var variadicChainDiagnosticRE = regexp.MustCompile(
+	`testdata/wall_variadic_chain\.go:44:12: (in call to Do, )?` +
+		`type func\(Person\) \*Address of Person\.Address ` +
+		`does not match inferred type func\(Person\) Person for func\(T\) T`)
 
 // TestWallVariadicChain pins lesson 9's wall, THE SECOND WALL -- and pins it
 // at the place it actually stands. Lessons 5 and 10 are compiler rejections
@@ -166,14 +180,16 @@ func TestWallVariadicChain(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	require.Error(t, err, "wall_variadic_chain.go must NOT compile: a homogeneous variadic can't take a heterogeneous chain")
 
-	// Always true, on any toolchain: the rejection names the call to Do and
-	// the step whose type breaks the single-T inference.
-	assert.Contains(t, string(out), "in call to Do")
-	assert.Contains(t, string(out), "does not match inferred type")
+	// Two spellings, one wall: go1.27 prefixes the offending argument with
+	// "in call to Do, " and go1.21 does not. Everything that carries the
+	// lesson -- the position, that Person.Address is func(Person) *Address,
+	// and that a single T cannot be both -- is identical, so this holds on
+	// any toolchain without accepting an unrelated failure.
+	assert.Regexp(t, variadicChainDiagnosticRE, string(out),
+		"expected the compiler to reject the heterogeneous chain at the call to Do")
 
-	// Type inference wording is toolchain-dependent and -lang does not
-	// stabilise it, so the verbatim pin is guarded the same way lesson 3's
-	// and lesson 5's are.
+	// On a toolchain that can produce it, pin the line fpgen/chain.go and
+	// docs/teaching-generics.md quote, character for character.
 	if goMinorVersion(t) >= 27 {
 		assert.Contains(t, string(out), wantVariadicChainDiagnostic,
 			"the diagnostic quoted verbatim in fpgen/chain.go and docs/teaching-generics.md must match what the compiler actually prints")
