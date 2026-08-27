@@ -173,6 +173,14 @@ transliteration of `fp`, in this file's usual style.
   *result's* `reflect.Kind` at run time (`toSlice`); `func(A) B` and
   `func(A) []B` are different Go types, so there is no single generic
   signature that accepts either. See lesson 8.
+- **`ManyMap` and `FlatMap` apply `f` head first; `fp.Many.Map` applies it
+  tail first.** `fp.Many.Map` (`fp/many.go`) recurses before calling
+  `f.Call(m.Head)`, so a side-effecting step sees the *last* element first;
+  both of `fpgen`'s evaluate `f(m.Head)` before recursing. The lists that come
+  out are identical either way — only a step with side effects, a counter or a
+  logger, can tell the difference — and head first is the order a reader of
+  `func(A) []B` would assume, which is what `TestFlatMapAppliesInListOrder`
+  (`fpgen/many_test.go`) pins. See lesson 8.
 - **No `Do`.** `fp.Maybe.Do`/`fp.Many.Do`'s heterogeneous variadic chain has
   no generic signature — Go's variadics are homogeneous. `fpgen/chain.go`
   offers `Chain2`/`Chain3`/`Chain4` (fixed arity) as the closest honest

@@ -38,7 +38,7 @@ Median of five runs:
 | Benchmark | ns/op | B/op | allocs/op |
 | --- | ---: | ---: | ---: |
 | `BenchmarkFPListMap` | 118,483 | 72,000 | 4,000 |
-| `BenchmarkFPGenListMap` | 25,174 | 32,000 | 2,000 |
+| `BenchmarkFPGenListMap` | 25,219 | 32,000 | 2,000 |
 
 All five runs of each, for the record:
 

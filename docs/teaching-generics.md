@@ -540,7 +540,7 @@ against iteration on.
 | Benchmark | ns/op | B/op | allocs/op |
 | --- | ---: | ---: | ---: |
 | `BenchmarkFPListMap` (`fp`, reflection) | 118,483 | 72,000 | 4,000 |
-| `BenchmarkFPGenListMap` (`fpgen`, generics) | 25,174 | 32,000 | 2,000 |
+| `BenchmarkFPGenListMap` (`fpgen`, generics) | 25,219 | 32,000 | 2,000 |
 
 Median of five runs, `go test ./fpgen -bench . -benchmem -count=5`, on an
 Apple M4 Pro, Go 1.27 (see `docs/investigations/generics-vs-reflection.md`
@@ -562,13 +562,22 @@ across two — exactly the table's 72,000 B/4,000 allocs and 32,000 B/2,000
 allocs over 1000 elements. `docs/investigations/generics-vs-reflection.md`
 records the `pprof` breakdown those four sites come from.
 
-Against that speed and allocation win: no compile-time safety on the paths
-`fp` covers and `fpgen` cannot (lessons 9-10), a panic instead of a returned
-`error` when a chain built from `interface{}` doesn't type-check, and the
-`reflect` package's own overhead on every call. Both are real; neither one
-is "obviously better" in the abstract — which of the two costs matters more
-depends entirely on whether the chain you need to express is one lessons 9
-and 10 say generics can reach.
+Against that speed and allocation win, two costs. The first is that nothing
+on the paths `fp` covers and `fpgen` cannot (lessons 9–10) is checked before
+the program runs — a chain is only as safe as whatever checks it at run
+time. `Maybe.Do` and `Many.Do` do check, and before applying anything:
+`newChain` (`fp/func.go`) builds every step's `Func` up front and returns
+`can't chain: step 0 returns …, but step 1 takes …` rather than panicking,
+which is an addition beyond slide 62 (see `NOTES.md`). The second is what
+happens where that guard is absent, and there the failure is a panic rather
+than an error: `Must` (`fp/func.go`) converts a `NewFunc` error into one by
+design, a hand-built `l.Map(Must(NewFunc(f)))` chain has no joint check at
+all and a mismatch reaches `reflect.Value.Call` unguarded, and `argValue`
+panics on the nil pointer it cannot dereference — the case above, which a
+`Many` chain can reach and a `Maybe` chain cannot. Both are real, and
+neither package is "obviously better" in the abstract — which cost matters
+more depends entirely on whether the chain you need to express is one
+lessons 9 and 10 say generics can reach.
 
 ---
 
