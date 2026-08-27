@@ -8,9 +8,9 @@ package fpgen
 //
 //	w, err := Maybe{p}.Do(Person.Address, Address.City, City.Weather, Weather.Description)
 //
-// Person.Address is func(Person) *Address; Address.City is func(*Address)
-// City; City.Weather is func(City) *Weather. Three different signatures,
-// one variadic parameter. There is no way to write that as a generic
+// Person.Address is func(Person) *Address; Address.City is
+// func(Address) *City; City.Weather is func(City) *Weather. Three different
+// signatures, one variadic parameter. There is no way to write that as a generic
 // signature, because Go's variadics are homogeneous by construction --
 // `fs ...T` needs a single T for every element, and generics gives you more
 // ways to parameterise T, not a way to make one parameter list stand for a
@@ -40,7 +40,7 @@ package fpgen
 // fpgen/wall_test.go, which builds that file, always asserts the call is
 // rejected, and pins the line above character for character on a go1.27 or
 // later toolchain. The other half -- that the bare Do declaration itself
-// compiles -- is pinned by a package-level declaration in that same file,
+// compiles -- is pinned by a package-level declaration in fpgen/wall_test.go,
 // var _ func(wallPerson, ...func(wallPerson) wallPerson) wallPerson =
 // wallDo[wallPerson], checked by every ordinary go test and go vet -- both
 // type-check test files, which go build does not -- rather than by a

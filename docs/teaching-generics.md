@@ -347,7 +347,7 @@ w, err := Maybe{p}.Do(Person.Address, Address.City, City.Weather, Weather.Descri
 ```
 
 `Person.Address` is `func(Person) *Address`; `Address.City` is
-`func(*Address) City`; `City.Weather` is `func(City) *Weather` — three
+`func(Address) *City`; `City.Weather` is `func(City) *Weather` — three
 distinct signatures, one variadic parameter.
 
 **The wall:** there is no generic signature for that, because Go's
@@ -388,7 +388,7 @@ compiler words the same rejection without the `in call to Do,` clause —
 identical position, types and reason — so the test accepts either spelling.
 The other half is pinned without a test at all: a package-level `var _
 func(wallPerson, ...func(wallPerson) wallPerson) wallPerson =
-wallDo[wallPerson]` in the same file proves the bare `Do` declaration
+wallDo[wallPerson]` in `fpgen/wall_test.go` proves the bare `Do` declaration
 compiles, and every ordinary `go test` and `go vet` checks it — both
 type-check test files, which `go build` does not. So the
 declaration-versus-call-site distinction is itself under test, not just
