@@ -483,12 +483,33 @@ happen to be running.**
 dispatch (`fp.Maybe.Do`'s variadic chain, lesson 9), chains built at run time
 from data the program didn't know about at compile time (a config file
 naming which methods to call, say), and the automatic pointer dereference in
-`argValue` (`fp/func.go`) — which silently adapts `Person.Address`
-(returning `*Address`) into `Address.City` (taking `Address`). Generics
-forces that adapter to be written out and *seen*: `fpgen`'s
-`Chain3`-based weather example (`ExampleChain3`) has an explicit
-`func(a address) string { return a.city }` step where `fp`'s version has
-nothing at all, because `argValue` papered over the exact same gap.
+`argValue` (`fp/func.go`).
+
+That last one is worth being precise about, because it is the clearest case
+of reflection doing real work. In `examples/weather`, `Person.Address` is
+`func(Person) *Address`, but `Address.City` has a *value* receiver, so
+`WeatherDo`'s chain hands a `*Address` to a step that wants an `Address`.
+`WeatherDo` names both steps — `Person.Address`, then `Address.City` — and
+nothing between them; `reflect.Value.Call` would panic on that mismatch, and
+`argValue` dereferences the pointer to prevent it. That is the whole
+adaptation, and no line of `fp`'s source shows it happening: `argValue`'s own
+doc comment records that this is what makes slides 61 and 63 work as
+printed. The cost is exactly as concrete. A nil pointer has nothing to
+dereference and no honest value to substitute, and `Call` has no error
+result, so `argValue` panics — which is precisely why `Maybe.Map` must
+short-circuit a typed nil pointer at *both* ends (`isNilPtr`, `fp/maybe.go`,
+lesson 7). A `Many` chain, which has no such guard, reaches the panic.
+
+`fpgen` has no equivalent machinery, and cannot: a step returning `*address`
+feeding a step taking `address` is a compile error, so the conversion must
+be written out, in the open. `ExampleChain3_pointerStep`
+(`fpgen/example_test.go`) is that same chain with the pointer shape
+preserved — `func(p person) *address`, then an explicit
+`func(a *address) address { return *a }`, then the step taking the value —
+so the adapter `fp` performs invisibly is a line a reader can see. The
+trade is not that one package does more work than the other; it is that
+`fp`'s adaptation is silent and can panic at run time, while `fpgen`'s is
+mandatory, visible, and checked before the program runs.
 
 **What it costs, measured, not asserted:** `fpgen/bench_test.go` maps
 `strings.ToUpper` over a 1000-element list both ways — `fp.List.Map` with a

@@ -55,3 +55,25 @@ func ExampleChain3() {
 	fmt.Println(got)
 	// Output: cloudy
 }
+
+func ExampleChain3_pointerStep() {
+	// The shape examples/weather actually has: Person.Address returns
+	// *Address, but Address.City has a value receiver, so the chain hands a
+	// *Address to a step wanting an Address. fp repairs that mismatch at run
+	// time inside argValue (fp/func.go), with no line of fp's source showing
+	// it happen. fpgen cannot: feeding the pointer step straight into the
+	// value step is a compile error, so the dereference is written out as its
+	// own step below, where a reader sees it.
+	type address struct{ city string }
+	type person struct{ addr *address }
+
+	weather := map[string]string{"Paris": "cloudy"}
+	got := fpgen.Chain3(
+		person{addr: &address{city: "Paris"}},
+		func(p person) *address { return p.addr },
+		func(a *address) address { return *a },
+		func(a address) string { return weather[a.city] },
+	)
+	fmt.Println(got)
+	// Output: cloudy
+}
